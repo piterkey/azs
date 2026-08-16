@@ -26,6 +26,7 @@
     --warn-bg: rgba(217,179,74,0.12);
     --flat: #6b757a;
     --flat-bg: rgba(107,117,122,0.14);
+    --selected: rgba(242,169,59,0.25);
   }
 
   * { box-sizing: border-box; }
@@ -448,9 +449,36 @@
 
   tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr { cursor: pointer; }
+  tbody tr { cursor: pointer; transition: background 0.15s ease; }
   tbody tr:hover { background: rgba(255,255,255,0.02); }
-  tbody tr.highlighted { background: rgba(242,169,59,0.08); }
+  tbody tr.highlighted { background: var(--selected); border-left: 3px solid var(--accent); }
+  tbody tr.highlighted td:first-child { padding-left: 11px; }
+
+  .mobile-sort-row {
+    display: none;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .mobile-sort-row .sort-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .mobile-sort-row .sort-btn:hover { border-color: var(--accent); color: var(--text); }
+  .mobile-sort-row .sort-btn.active { color: var(--accent); border-color: var(--accent); }
+  .mobile-sort-row .sort-btn .arrow { font-size: 8px; margin-left: 4px; }
 
   .num { font-family: 'IBM Plex Mono', monospace; color: var(--text); white-space: nowrap; }
   .addr { color: var(--text); }
@@ -485,12 +513,19 @@
   @media (max-width: 640px) {
     .controls { grid-template-columns: 1fr; }
     #map { height: 280px; }
+    
+    /* Мобильная таблица */
     table, thead, tbody, th, td, tr { display: block; }
     thead { display: none; }
-    tbody tr { border-bottom: 1px solid var(--line); padding: 12px 14px; }
+    .mobile-sort-row { display: flex; }
+    tbody tr { border-bottom: 1px solid var(--line); padding: 10px 14px; }
     tbody td { border: none; padding: 4px 0; display: flex; justify-content: space-between; gap: 12px; }
-    tbody td::before { content: attr(data-label); color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; }
+    tbody td::before { content: attr(data-label); color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; flex-shrink: 0; }
     .addr { flex-direction: column; }
+    .addr .brand { margin-top: 0; }
+    tbody tr.highlighted { border-left: 3px solid var(--accent); padding-left: 11px; }
+    tbody tr.highlighted td:first-child { padding-left: 0; }
+    
     .range-with-input { flex-wrap: wrap; }
     .range-with-input .num-input-wrap { width: 70px; }
     .refresh-bar .url-section { flex-wrap: wrap; }
@@ -614,7 +649,9 @@
         <th data-key="fuel_updated_at" data-type="date">Обновлено<span class="arrow"></span></th>
       </tr>
     </thead>
-    <tbody id="tableBody"></tbody>
+    <tbody id="tableBody">
+      <!-- Мобильная строка сортировки будет добавлена через JS -->
+    </tbody>
   </table>
   <div class="empty" id="emptyState" style="display:none;">Нет АЗС, подходящих под выбранные фильтры</div>
 
@@ -657,6 +694,7 @@ let state = {
   brand: "",
   sortKey: "distance_km",
   sortDir: 1,
+  selectedStationId: null,
 };
 
 // ---------- Гео / формат ----------
@@ -760,18 +798,13 @@ function applyNewRawData(rawStations, sourceLabel) {
   setStatus(`разбираю данные (${rawStations.length} АЗС)…`);
   showProgress(null);
   
-  // Проверяем, есть ли метаданные (обёртка с updated_at)
   let stationsData = rawStations;
   let updateTime = null;
   
   if (rawStations.data && Array.isArray(rawStations.data)) {
-    // Это формат с метаданными из GitHub Actions
     stationsData = rawStations.data;
     if (rawStations.updated_at) {
       updateTime = new Date(rawStations.updated_at);
-    }
-    if (rawStations.stations_count) {
-      // можно использовать для проверки
     }
   }
   
@@ -783,7 +816,6 @@ function applyNewRawData(rawStations, sourceLabel) {
   applyFilters();
   hideProgress();
   
-  // Формируем сообщение о загрузке
   let statusMessage = `обновлено: ${sourceLabel}`;
   if (updateTime) {
     const formattedTime = updateTime.toLocaleString("ru-RU");
@@ -800,7 +832,6 @@ async function fetchFromUrl(url) {
   showProgress(null);
   
   try {
-    // 1. СНАЧАЛА ПРОБУЕМ ЛОКАЛЬНЫЙ ФАЙЛ
     setStatus("проверка наличия локального файла stations.json…");
     try {
       const localResp = await fetch('stations.json', { cache: "no-store" });
@@ -815,7 +846,6 @@ async function fetchFromUrl(url) {
       console.log("Локальный файл не найден, пробуем API");
     }
 
-    // 2. ПРОБУЕМ ПРЯМОЙ ЗАПРОС К API
     setStatus("загрузка с API…");
     try {
       const directResp = await fetch(url, { cache: "no-store" });
@@ -830,7 +860,6 @@ async function fetchFromUrl(url) {
       console.log("Прямой запрос к API не удался: " + e.message);
     }
 
-    // 3. ЕСЛИ ВСЁ НЕ УДАЛОСЬ — ПОКАЗЫВАЕМ ОШИБКУ
     hideProgress();
     setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
     console.error("Все способы загрузки данных не удались");
@@ -1308,14 +1337,15 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-const centerIcon = L.divIcon({
+// Звезда для центральной точки
+const starIcon = L.divIcon({
   className: '',
-  html: '<div style="width:14px;height:14px;border-radius:50%;background:#f2a93b;border:3px solid #15181a;box-shadow:0 0 0 2px #f2a93b;"></div>',
-  iconSize: [14,14],
-  iconAnchor: [7,7],
+  html: '<div style="font-size:24px;line-height:24px;text-align:center;color:#f2a93b;text-shadow:0 0 10px rgba(242,169,59,0.5);">⭐</div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
-const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: centerIcon, zIndexOffset: 1000 })
-  .addTo(map).bindPopup("<b>Точка отсчёта</b>");
+const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: starIcon, zIndexOffset: 1000 })
+  .addTo(map).bindPopup("<b>⭐ Точка отсчёта</b>");
 
 map.on('click', (e) => setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true }));
 
@@ -1332,36 +1362,108 @@ function stationIcon(status) {
   const color = STATUS_COLOR[status] || "#6b757a";
   return L.divIcon({
     className: '',
-    html: `<div style="width:11px;height:11px;border-radius:50%;background:${color};border:2px solid #15181a;"></div>`,
-    iconSize: [11,11],
-    iconAnchor: [5,5],
+    html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #15181a;box-shadow:0 0 0 2px ${color}40;"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
   });
 }
 
 let markers = [];
+let selectedMarker = null;
+
 function renderMap(rows) {
+  // Удаляем старые маркеры
   markers.forEach(m => map.removeLayer(m));
   markers = [];
+  selectedMarker = null;
+  
   rows.forEach(s => {
-    const marker = L.marker([s.latitude, s.longitude], { icon: stationIcon(s.fuel_status) });
+    const isSelected = (state.selectedStationId === s.station_id);
+    const icon = stationIcon(s.fuel_status);
+    const marker = L.marker([s.latitude, s.longitude], { icon });
+    
+    // Если станция выбрана — увеличиваем маркер
+    if (isSelected) {
+      const bigIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:18px;height:18px;border-radius:50%;background:${STATUS_COLOR[s.fuel_status]};border:3px solid var(--accent);box-shadow:0 0 20px rgba(242,169,59,0.6);"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+      marker.setIcon(bigIcon);
+      selectedMarker = marker;
+    }
+    
     marker.bindPopup(`
       <div class="popup-title">${s.brand}</div>
       <div class="popup-line">${s.address}</div>
       <div class="popup-line">${FUEL_LABELS[state.fuel]}: ${STATUS_LABELS[s.fuel_status] || s.fuel_status}${s.fuel_price ? ' · ' + s.fuel_price + ' ₽' : ''}</div>
       <div class="popup-line">${s.distance_km.toFixed(2)} км · обновлено ${fmtDate(s.fuel_updated_at)}</div>
     `);
-    marker.on('click', () => highlightRow(s.station_id));
+    
+    marker.on('click', () => {
+      highlightRow(s.station_id);
+      map.setView([s.latitude, s.longitude], 15);
+      marker.openPopup();
+    });
+    
     marker.addTo(map);
     markers.push(marker);
   });
+  
+  // Если есть выбранная станция — центрируем на ней
+  if (selectedMarker) {
+    const latLng = selectedMarker.getLatLng();
+    map.setView(latLng, 15);
+    selectedMarker.openPopup();
+  }
 }
 
 function highlightRow(stationId) {
+  state.selectedStationId = stationId;
+  
+  // Обновляем таблицу
   document.querySelectorAll('#tableBody tr').forEach(tr => {
     tr.classList.toggle('highlighted', tr.dataset.id === stationId);
   });
+  
+  // Обновляем карту
+  renderMap(currentRows());
+  
+  // Прокручиваем к строке
   const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ---------- Мобильная строка сортировки ----------
+function createMobileSortRow() {
+  const sortKeys = [
+    { key: 'distance_km', label: 'Расстояние' },
+    { key: 'fuel_price', label: 'Цена' },
+    { key: 'fuel_updated_at', label: 'Обновлено' }
+  ];
+  
+  const container = document.createElement('div');
+  container.className = 'mobile-sort-row';
+  
+  sortKeys.forEach(({ key, label }) => {
+    const btn = document.createElement('button');
+    btn.className = 'sort-btn' + (state.sortKey === key ? ' active' : '');
+    btn.dataset.key = key;
+    btn.innerHTML = `${label} <span class="arrow">${state.sortKey === key ? (state.sortDir === 1 ? '↑' : '↓') : ''}</span>`;
+    btn.addEventListener('click', () => {
+      if (state.sortKey === key) {
+        state.sortDir *= -1;
+      } else {
+        state.sortKey = key;
+        state.sortDir = 1;
+      }
+      render();
+    });
+    container.appendChild(btn);
+  });
+  
+  return container;
 }
 
 // ---------- Таблица ----------
@@ -1371,6 +1473,11 @@ function render() {
 
   const body = document.getElementById("tableBody");
   body.innerHTML = "";
+  
+  // Добавляем мобильную строку сортировки
+  const sortRow = createMobileSortRow();
+  body.appendChild(sortRow);
+  
   document.getElementById("shownCount").textContent = sorted.length;
   document.getElementById("emptyState").style.display = sorted.length ? "none" : "block";
 
@@ -1380,6 +1487,9 @@ function render() {
   sorted.forEach(s => {
     const tr = document.createElement("tr");
     tr.dataset.id = s.station_id;
+    if (state.selectedStationId === s.station_id) {
+      tr.classList.add('highlighted');
+    }
     tr.innerHTML = `
       <td class="num" data-label="Расстояние">${s.distance_km.toFixed(2)} км</td>
       <td class="addr" data-label="Адрес">${s.address}<span class="brand">${s.brand || ""}</span></td>
@@ -1387,10 +1497,13 @@ function render() {
       <td class="price" data-label="Цена">${s.fuel_price ? s.fuel_price + " ₽" : "—"}</td>
       <td class="updated" data-label="Обновлено">${fmtDate(s.fuel_updated_at)}</td>
     `;
-    tr.addEventListener('click', () => highlightRow(s.station_id));
+    tr.addEventListener('click', () => {
+      highlightRow(s.station_id);
+    });
     body.appendChild(tr);
   });
 
+  // Обновляем заголовки таблицы (десктоп)
   document.querySelectorAll("thead th").forEach(th => {
     th.classList.toggle("sorted", th.dataset.key === state.sortKey);
     const arrow = th.querySelector(".arrow");
