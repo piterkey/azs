@@ -1182,16 +1182,31 @@ function resetAllFilters() {
 // ---------- Бейдж фильтров ----------
 function updateFilterBadge() {
   const badge = document.getElementById("filterBadge");
-  let filters = [];
-  if (state.brand) filters.push("бренд");
-  if (state.fuel !== DEFAULT_FUEL) filters.push("топливо");
-  if (state.activeStatuses.size < STATUS_ORDER.length) filters.push("статус");
-  if (state.limit > 0) filters.push("лимит " + state.limit);
-  if (Math.abs(state.maxDist - 5.0) > 0.01) filters.push("радиус");
-  if (filters.length === 0) {
+  let parts = [];
+  
+  // Бренд
+  if (state.brand) {
+    parts.push(state.brand);
+  }
+  
+  // Марка топлива (всегда показываем текущую)
+  const fuelLabel = FUEL_LABELS[state.fuel] || state.fuel;
+  parts.push(fuelLabel);
+  
+  // Статус (активные)
+  const activeStatuses = Array.from(state.activeStatuses);
+  if (activeStatuses.length > 0 && activeStatuses.length < STATUS_ORDER.length) {
+    const statusLabels = activeStatuses.map(s => STATUS_LABELS[s] || s);
+    parts.push(statusLabels.join(', '));
+  } else if (activeStatuses.length === STATUS_ORDER.length) {
+    parts.push('все статусы');
+  }
+  
+  // Если нет ни бренда, ни активных статусов (кроме "Есть" по умолчанию)
+  if (parts.length === 0) {
     badge.textContent = "все фильтры";
   } else {
-    badge.textContent = filters.join(", ");
+    badge.textContent = parts.join(' · ');
   }
 }
 
