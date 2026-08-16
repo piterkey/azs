@@ -1295,6 +1295,34 @@ function updateFilterBadge() {
   }
 }
 
+// ---------- Автоматическое расширение радиуса ----------
+function expandRadiusToIncludeStation(stationId) {
+  const station = DATA.find(s => s.station_id === stationId);
+  if (!station) return false;
+  
+  const distKm = haversineKm(state.centerLon, state.centerLat, station.longitude, station.latitude);
+  
+  // Если станция уже в радиусе — ничего не делаем
+  if (distKm <= state.maxDist) return false;
+  
+  // Округляем расстояние с запасом 10%
+  const newRadius = Math.ceil(distKm * 1.1 * 10) / 10;
+  const maxVal = parseFloat(distSlider.max) || 100;
+  const finalRadius = Math.min(newRadius, maxVal);
+  
+  // Обновляем радиус
+  state.maxDist = finalRadius;
+  distSlider.value = finalRadius.toFixed(2);
+  distInput.value = finalRadius.toFixed(1);
+  document.getElementById("distVal").textContent = finalRadius.toFixed(1);
+  
+  // Обновляем количество в радиусе
+  updateCountInRadius();
+  updateFilterBadge();
+  
+  return true;
+}
+
 // ---------- Сборка строк для текущего состояния ----------
 function currentRows() {
   const rows = [];
@@ -1405,7 +1433,11 @@ function clearSelection() {
     tr.classList.remove('highlighted');
   });
   map.closePopup();
-  renderMap(currentRows());
+  // Используем текущие данные без пересчёта
+  const filtered = currentRows();
+  const sorted = sortRows(filtered);
+  renderMap(sorted);
+  // Не перерисовываем всю таблицу, только карту
 }
 
 function renderMap(rows) {
@@ -1447,6 +1479,26 @@ function renderMap(rows) {
         clearSelection();
         return;
       }
+      
+      // Проверяем, входит ли станция в текущий радиус
+      const distKm = haversineKm(state.centerLon, state.centerLat, s.latitude, s.longitude);
+      if (distKm > state.maxDist) {
+        // Расширяем радиус, чтобы включить станцию
+        const expanded = expandRadiusToIncludeStation(s.station_id);
+        if (expanded) {
+          // Перерисовываем всё с новым радиусом
+          applyFilters();
+          // После обновления выделяем станцию
+          setTimeout(() => {
+            highlightRow(s.station_id);
+            map.panTo([s.latitude, s.longitude]);
+            // Открываем попап у текущего маркера
+            marker.openPopup();
+          }, 100);
+          return;
+        }
+      }
+      
       highlightRow(s.station_id);
       map.panTo([s.latitude, s.longitude]);
       marker.openPopup();
@@ -1515,13 +1567,6 @@ function createMobileSortRow() {
     btn.textContent = labelText;
     
     btn.addEventListener('click', () => {
-      // Особый случай: клик по "Обновлено" — сброс всей сортировки
-      if (key === "fuel_updated_at") {
-        state.sorters = [];
-        render();
-        return;
-      }
-      
       const existingIndex = state.sorters.findIndex(s => s.key === key);
       
       if (existingIndex !== -1) {
@@ -1574,6 +1619,19 @@ function render() {
       <td class="updated" data-label="Обновлено">${fmtDate(s.fuel_updated_at)}</td>
     `;
     tr.addEventListener('click', () => {
+      // Проверяем, входит ли станция в текущий радиус
+      const distKm = haversineKm(state.centerLon, state.centerLat, s.latitude, s.longitude);
+      if (distKm > state.maxDist) {
+        // Расширяем радиус, чтобы включить станцию
+        const expanded = expandRadiusToIncludeStation(s.station_id);
+        if (expanded) {
+          applyFilters();
+          setTimeout(() => {
+            highlightRow(s.station_id);
+          }, 100);
+          return;
+        }
+      }
       highlightRow(s.station_id);
     });
     body.appendChild(tr);
@@ -1605,21 +1663,17 @@ document.querySelectorAll("thead th").forEach(th => {
   th.addEventListener("click", () => {
     const key = th.dataset.key;
     
-    // Особый случай: клик по "Обновлено" — сброс всей сортировки
-    if (key === "fuel_updated_at") {
-      state.sorters = [];
-      render();
-      return;
-    }
-    
     const existingIndex = state.sorters.findIndex(s => s.key === key);
     
     if (existingIndex !== -1) {
+      // Если колонка уже в сортировке — убираем её
       state.sorters.splice(existingIndex, 1);
+      // Если сортировка стала пустой — добавляем сортировку по умолчанию (расстояние)
       if (state.sorters.length === 0) {
         state.sorters = [{ key: "distance_km", dir: 1 }];
       }
     } else {
+      // Добавляем новую колонку в конец
       state.sorters.push({ key, dir: 1 });
     }
     
