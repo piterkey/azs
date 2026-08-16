@@ -759,15 +759,38 @@ function rebuildBrandOptions() {
 function applyNewRawData(rawStations, sourceLabel) {
   setStatus(`разбираю данные (${rawStations.length} АЗС)…`);
   showProgress(null);
-  DATA = normalizeRaw(rawStations);
+  
+  // Проверяем, есть ли метаданные (обёртка с updated_at)
+  let stationsData = rawStations;
+  let updateTime = null;
+  
+  if (rawStations.data && Array.isArray(rawStations.data)) {
+    // Это формат с метаданными из GitHub Actions
+    stationsData = rawStations.data;
+    if (rawStations.updated_at) {
+      updateTime = new Date(rawStations.updated_at);
+    }
+    if (rawStations.stations_count) {
+      // можно использовать для проверки
+    }
+  }
+  
+  DATA = normalizeRaw(stationsData);
   rebuildBrandOptions();
   document.getElementById("totalCount").textContent = DATA.length;
   document.getElementById("stationCountFooter").textContent = DATA.length;
   updateMaxDistBound(true);
   applyFilters();
   hideProgress();
-  const now = new Date().toLocaleString("ru-RU");
-  setStatus(`обновлено: ${sourceLabel}, ${now} · станций: ${DATA.length}`, "ok");
+  
+  // Формируем сообщение о загрузке
+  let statusMessage = `обновлено: ${sourceLabel}`;
+  if (updateTime) {
+    const formattedTime = updateTime.toLocaleString("ru-RU");
+    statusMessage += `, файл обновлен ${formattedTime}`;
+  }
+  statusMessage += ` · станций: ${DATA.length}`;
+  setStatus(statusMessage, "ok");
   updateFilterBadge();
 }
 
