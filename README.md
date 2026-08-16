@@ -23,7 +23,7 @@ Gasoline availability on stations
 ## 🚀 Демо
 
 Страница доступна по адресу:  
-[https://piterkey.github.io/azs/](https://piterkey.github.io/azs/))
+[https://piterkey.github.io/azs/](https://piterkey.github.io/azs/)
 
 ## 📦 Установка и запуск
 
