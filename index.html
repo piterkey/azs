@@ -1474,9 +1474,7 @@ function renderMap(rows) {
       }
     });
     
-    // Универсальный обработчик клика по маркеру
     marker.on('click', function(e) {
-      // Для мобильных устройств — принудительно открываем попап
       const isMobile = window.innerWidth <= 640;
       
       if (state.selectedStationId === s.station_id) {
@@ -1484,7 +1482,6 @@ function renderMap(rows) {
         return;
       }
       
-      // Проверяем, входит ли станция в текущий радиус
       const distKm = haversineKm(state.centerLon, state.centerLat, s.latitude, s.longitude);
       if (distKm > state.maxDist) {
         const expanded = expandRadiusToIncludeStation(s.station_id);
@@ -1494,7 +1491,6 @@ function renderMap(rows) {
             highlightRow(s.station_id);
             map.panTo([s.latitude, s.longitude]);
             if (isMobile) {
-              // На мобильных — принудительно открываем попап через таймер
               setTimeout(() => {
                 marker.openPopup();
               }, 200);
@@ -1509,7 +1505,6 @@ function renderMap(rows) {
       highlightRow(s.station_id);
       map.panTo([s.latitude, s.longitude]);
       
-      // Открываем попап с задержкой для мобильных устройств
       if (isMobile) {
         setTimeout(() => {
           marker.openPopup();
@@ -1526,7 +1521,6 @@ function renderMap(rows) {
   if (selectedMarker) {
     const latLng = selectedMarker.getLatLng();
     map.panTo(latLng);
-    // На мобильных — открываем попап с задержкой
     if (window.innerWidth <= 640) {
       setTimeout(() => {
         selectedMarker.openPopup();
@@ -1536,6 +1530,7 @@ function renderMap(rows) {
     }
   }
 }
+
 // ---------- Выделение строки ----------
 function highlightRow(stationId) {
   if (state.selectedStationId === stationId) {
@@ -1557,19 +1552,20 @@ function highlightRow(stationId) {
   const station = DATA.find(s => s.station_id === stationId);
   if (station) {
     map.panTo([station.latitude, station.longitude]);
-    // На мобильных — принудительно открываем попап
-    if (window.innerWidth <= 640) {
+    
+    // Открываем попап у соответствующего маркера
+    // Ищем маркер по координатам (с небольшой погрешностью)
+    const marker = markers.find(m => {
+      const latLng = m.getLatLng();
+      return Math.abs(latLng.lat - station.latitude) < 0.0001 && 
+             Math.abs(latLng.lng - station.longitude) < 0.0001;
+    });
+    
+    if (marker) {
+      // Открываем попап с небольшой задержкой для анимации
       setTimeout(() => {
-        // Находим маркер и открываем попап
-        const marker = markers.find(m => {
-          const latLng = m.getLatLng();
-          return Math.abs(latLng.lat - station.latitude) < 0.0001 && 
-                 Math.abs(latLng.lng - station.longitude) < 0.0001;
-        });
-        if (marker) {
-          marker.openPopup();
-        }
-      }, 300);
+        marker.openPopup();
+      }, 150);
     }
   }
 }
