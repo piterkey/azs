@@ -19,7 +19,7 @@ jobs:
           echo "Начинаем загрузку данных с API Альфа-Банка через прокси..."
           
           # Используем публичный прокси-сервер для обхода блокировки
-          PROXY_URL="https://thingproxy.freeboard.io/fetch/https://alfabank.ru/api/v1/azs-stations/public/stations"
+          PROXY_URL="https://asz-availability.piter-key.workers.dev"
           
           if curl -f -o stations.json \
              --connect-timeout 30 \
