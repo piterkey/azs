@@ -33,6 +33,16 @@ Gasoline availability on stations
 2. Откройте его в любом современном браузере (Chrome, Firefox, Safari, Edge)
 3. Страница автоматически загрузит данные с API Альфа-Банка
 
+## 📥 Скачать актуальную версию
+
+**Всегда свежий файл `index.html` можно скачать по ссылке:**  
+[⬇️ Скачать index.html](https://raw.githubusercontent.com/piterkey/azs/main/index.html)
+
+Или используйте прямую ссылку на файл в репозитории:  
+[https://github.com/piterkey/azs/blob/main/index.html](https://github.com/piterkey/azs/blob/main/index.html)
+
+> **Для локального использования:** скачайте файл и откройте его в браузере. При наличии файла `stations.json` в той же папке, страница загрузит данные из него.
+
 ## 🔧 Использование
 
 ### Основные элементы управления
