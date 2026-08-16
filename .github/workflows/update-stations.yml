@@ -26,13 +26,17 @@ jobs:
                --header="Cache-Control: no-cache" \
                --timeout=60 \
                "https://alfabank.ru/api/v1/azs-stations/public/stations"
+          
           if [ -f stations.json ] && [ -s stations.json ]; then
             echo "✅ Данные успешно загружены (размер: $(wc -c < stations.json) байт)"
-            if head -c 1 stations.json | grep -q '['; then
+            
+            # Проверяем валидность JSON с помощью jq
+            if jq -e '.' stations.json > /dev/null 2>&1; then
               echo "✅ JSON валидный"
+              echo "Количество станций: $(jq '. | length' stations.json)"
             else
               echo "❌ Файл не содержит валидный JSON"
-              echo "Содержимое файла (первые 200 символов):"
+              echo "Первые 200 символов файла:"
               head -c 200 stations.json
               exit 1
             fi
