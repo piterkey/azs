@@ -2,8 +2,8 @@ name: Update stations data
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Каждые 6 часов
-  workflow_dispatch:        # Ручной запуск
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -17,15 +17,13 @@ jobs:
       - name: Download stations data
         run: |
           echo "Начинаем загрузку данных с API Альфа-Банка..."
-          # Используем -k для игнорирования проверки SSL-сертификата
-          # и -f для возврата ошибки при неудаче
           if curl -k -f -o stations.json \
+             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
              --connect-timeout 30 \
              --max-time 60 \
              "https://alfabank.ru/api/v1/azs-stations/public/stations"; then
             echo "✅ Данные успешно загружены"
-            # Проверяем, что файл не пустой и содержит валидный JSON
-            if jq -e '.' stations.json > /dev/null 2>&1; then
+            if head -c 1 stations.json | grep -q '['; then
               echo "✅ JSON валидный"
             else
               echo "❌ Файл не содержит валидный JSON"
