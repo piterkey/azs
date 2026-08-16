@@ -1372,25 +1372,26 @@ let markers = [];
 let selectedMarker = null;
 
 function renderMap(rows) {
-  // Удаляем старые маркеры
   markers.forEach(m => map.removeLayer(m));
   markers = [];
   selectedMarker = null;
   
   rows.forEach(s => {
     const isSelected = (state.selectedStationId === s.station_id);
+    
+    // Базовый маркер
     const icon = stationIcon(s.fuel_status);
     const marker = L.marker([s.latitude, s.longitude], { icon });
     
-    // Если станция выбрана — увеличиваем маркер
+    // Если станция выбрана — меняем цвет на синий
     if (isSelected) {
-      const bigIcon = L.divIcon({
+      const blueIcon = L.divIcon({
         className: '',
-        html: `<div style="width:18px;height:18px;border-radius:50%;background:${STATUS_COLOR[s.fuel_status]};border:3px solid var(--accent);box-shadow:0 0 20px rgba(242,169,59,0.6);"></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#007aff;border:3px solid #ffffff;box-shadow:0 0 20px rgba(0,122,255,0.8);"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
       });
-      marker.setIcon(bigIcon);
+      marker.setIcon(blueIcon);
       selectedMarker = marker;
     }
     
@@ -1403,7 +1404,8 @@ function renderMap(rows) {
     
     marker.on('click', () => {
       highlightRow(s.station_id);
-      map.setView([s.latitude, s.longitude], 15);
+      // Центрируем без изменения масштаба
+      map.panTo([s.latitude, s.longitude]);
       marker.openPopup();
     });
     
@@ -1411,10 +1413,10 @@ function renderMap(rows) {
     markers.push(marker);
   });
   
-  // Если есть выбранная станция — центрируем на ней
+  // Если есть выбранная станция — центрируем без изменения масштаба
   if (selectedMarker) {
     const latLng = selectedMarker.getLatLng();
-    map.setView(latLng, 15);
+    map.panTo(latLng);
     selectedMarker.openPopup();
   }
 }
@@ -1422,17 +1424,20 @@ function renderMap(rows) {
 function highlightRow(stationId) {
   state.selectedStationId = stationId;
   
-  // Обновляем таблицу
   document.querySelectorAll('#tableBody tr').forEach(tr => {
     tr.classList.toggle('highlighted', tr.dataset.id === stationId);
   });
   
-  // Обновляем карту
   renderMap(currentRows());
   
-  // Прокручиваем к строке
   const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  // Находим станцию и центрируем карту без изменения масштаба
+  const station = DATA.find(s => s.station_id === stationId);
+  if (station) {
+    map.panTo([station.latitude, station.longitude]);
+  }
 }
 
 // ---------- Мобильная строка сортировки ----------
