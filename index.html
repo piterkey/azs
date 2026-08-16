@@ -510,14 +510,18 @@
     border-bottom-color: var(--accent) !important;
   }
 
+  /* Анимация пульсации для сердечка */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+
   @media (max-width: 640px) {
     .controls { grid-template-columns: 1fr; }
     #map { height: 280px; }
     
-    /* Мобильная таблица */
-    table, thead, tbody, th, td, tr { display: block; }
-    thead { display: none; }
     .mobile-sort-row { display: flex; }
+    thead { display: none; }
     tbody tr { border-bottom: 1px solid var(--line); padding: 10px 14px; }
     tbody td { border: none; padding: 4px 0; display: flex; justify-content: space-between; gap: 12px; }
     tbody td::before { content: attr(data-label); color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; flex-shrink: 0; }
@@ -642,16 +646,14 @@
   <table>
     <thead>
       <tr>
-        <th data-key="distance_km" data-type="num">Расст., км<span class="arrow"></span></th>
-        <th data-key="address" data-type="str">Адрес / бренд<span class="arrow"></span></th>
-        <th data-key="fuel_status" data-type="str">Топливо<span class="arrow"></span></th>
-        <th data-key="fuel_price" data-type="num">Цена, ₽<span class="arrow"></span></th>
-        <th data-key="fuel_updated_at" data-type="date">Обновлено<span class="arrow"></span></th>
+        <th data-key="distance_km" data-type="num" title="Клик для сортировки">Расст., км<span class="arrow"></span></th>
+        <th data-key="address" data-type="str" title="Клик для сортировки">Адрес / бренд<span class="arrow"></span></th>
+        <th data-key="fuel_status" data-type="str" title="Клик для сортировки">Топливо<span class="arrow"></span></th>
+        <th data-key="fuel_price" data-type="num" title="Клик для сортировки">Цена, ₽<span class="arrow"></span></th>
+        <th data-key="fuel_updated_at" data-type="date" title="Клик для сортировки">Обновлено<span class="arrow"></span></th>
       </tr>
     </thead>
-    <tbody id="tableBody">
-      <!-- Мобильная строка сортировки будет добавлена через JS -->
-    </tbody>
+    <tbody id="tableBody"></tbody>
   </table>
   <div class="empty" id="emptyState" style="display:none;">Нет АЗС, подходящих под выбранные фильтры</div>
 
@@ -692,8 +694,7 @@ let state = {
   fuel: DEFAULT_FUEL,
   activeStatuses: new Set(["available"]),
   brand: "",
-  sortKey: "distance_km",
-  sortDir: 1,
+  sorters: [], // пустой массив = сортировка по умолчанию (расстояние)
   selectedStationId: null,
 };
 
@@ -976,7 +977,13 @@ function setCenter(lat, lon, opts) {
   centerMarker.setLatLng([lat, lon]);
   updateMaxDistBound(!!opts.expandToFarthest);
   if (!opts.skipPan) map.panTo([lat, lon]);
+  
+  // Сначала применяем фильтры, потом снимаем выделение
   applyFilters();
+  
+  // Снимаем выделение ПОСЛЕ обновления данных
+  clearSelection();
+  
   reverseGeocode(lat, lon);
 }
 
@@ -1319,14 +1326,34 @@ function currentRows() {
 }
 
 function sortRows(rows) {
-  const { sortKey, sortDir } = state;
+  const { sorters } = state;
+  
+  // Если сортировка пуста — используем сортировку по умолчанию (расстояние)
+  const effectiveSorters = sorters.length > 0 ? sorters : [{ key: "distance_km", dir: 1 }];
+  
   return rows.slice().sort((a, b) => {
-    let av = a[sortKey], bv = b[sortKey];
-    if (sortKey === "fuel_price") { av = parseFloat(av) || -1; bv = parseFloat(bv) || -1; }
-    if (sortKey === "fuel_updated_at") { av = av ? new Date(av).getTime() : -Infinity; bv = bv ? new Date(bv).getTime() : -Infinity; }
-    if (sortKey === "fuel_status") { av = STATUS_ORDER.indexOf(av); bv = STATUS_ORDER.indexOf(bv); }
-    if (typeof av === "string") return av.localeCompare(bv, "ru") * sortDir;
-    return (av - bv) * sortDir;
+    for (const sorter of effectiveSorters) {
+      const { key, dir } = sorter;
+      let av = a[key], bv = b[key];
+      
+      if (key === "fuel_price") {
+        av = parseFloat(av) || -1;
+        bv = parseFloat(bv) || -1;
+      } else if (key === "fuel_updated_at") {
+        av = av ? new Date(av).getTime() : -Infinity;
+        bv = bv ? new Date(bv).getTime() : -Infinity;
+      } else if (key === "fuel_status") {
+        av = STATUS_ORDER.indexOf(av);
+        bv = STATUS_ORDER.indexOf(bv);
+      } else if (typeof av === "string") {
+        const result = av.localeCompare(bv, "ru");
+        if (result !== 0) return result * dir;
+        continue;
+      }
+      
+      if (av !== bv) return (av - bv) * dir;
+    }
+    return 0;
   });
 }
 
@@ -1337,15 +1364,15 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
-// Звезда для центральной точки
-const starIcon = L.divIcon({
+// Сердечко для центральной точки
+const heartIcon = L.divIcon({
   className: '',
-  html: '<div style="font-size:24px;line-height:24px;text-align:center;color:#f2a93b;text-shadow:0 0 10px rgba(242,169,59,0.5);">⭐</div>',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
+  html: '<div style="font-size:28px;line-height:28px;text-align:center;color:#ff3b30;text-shadow:0 0 20px rgba(255,59,48,0.7);animation:pulse 1.5s ease-in-out infinite;">❤️</div>',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
 });
-const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: starIcon, zIndexOffset: 1000 })
-  .addTo(map).bindPopup("<b>⭐ Точка отсчёта</b>");
+const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: heartIcon, zIndexOffset: 1000 })
+  .addTo(map).bindPopup("<b>❤️ Точка отсчёта</b>");
 
 map.on('click', (e) => setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true }));
 
@@ -1370,6 +1397,16 @@ function stationIcon(status) {
 
 let markers = [];
 let selectedMarker = null;
+
+// ---------- Снятие выделения ----------
+function clearSelection() {
+  state.selectedStationId = null;
+  document.querySelectorAll('#tableBody tr').forEach(tr => {
+    tr.classList.remove('highlighted');
+  });
+  map.closePopup();
+  renderMap(currentRows());
+}
 
 function renderMap(rows) {
   markers.forEach(m => map.removeLayer(m));
@@ -1399,7 +1436,6 @@ function renderMap(rows) {
       <div class="popup-line">${s.distance_km.toFixed(2)} км · обновлено ${fmtDate(s.fuel_updated_at)}</div>
     `);
     
-    // Обработчик закрытия попапа
     marker.on('popupclose', () => {
       if (state.selectedStationId === s.station_id) {
         clearSelection();
@@ -1427,7 +1463,13 @@ function renderMap(rows) {
   }
 }
 
+// ---------- Выделение строки ----------
 function highlightRow(stationId) {
+  if (state.selectedStationId === stationId) {
+    clearSelection();
+    return;
+  }
+  
   state.selectedStationId = stationId;
   
   document.querySelectorAll('#tableBody tr').forEach(tr => {
@@ -1439,7 +1481,6 @@ function highlightRow(stationId) {
   const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
   
-  // Находим станцию и центрируем карту без изменения масштаба
   const station = DATA.find(s => s.station_id === stationId);
   if (station) {
     map.panTo([station.latitude, station.longitude]);
@@ -1459,18 +1500,42 @@ function createMobileSortRow() {
   
   sortKeys.forEach(({ key, label }) => {
     const btn = document.createElement('button');
-    btn.className = 'sort-btn' + (state.sortKey === key ? ' active' : '');
+    const sorter = state.sorters.find(s => s.key === key);
+    const index = state.sorters.findIndex(s => s.key === key);
+    
+    btn.className = 'sort-btn' + (sorter ? ' active' : '');
     btn.dataset.key = key;
-    btn.innerHTML = `${label} <span class="arrow">${state.sortKey === key ? (state.sortDir === 1 ? '↑' : '↓') : ''}</span>`;
+    
+    let labelText = label;
+    if (sorter) {
+      const dir = sorter.dir === 1 ? '↑' : '↓';
+      const pos = state.sorters.length > 1 ? ` #${index + 1}` : '';
+      labelText += ` ${dir}${pos}`;
+    }
+    btn.textContent = labelText;
+    
     btn.addEventListener('click', () => {
-      if (state.sortKey === key) {
-        state.sortDir *= -1;
-      } else {
-        state.sortKey = key;
-        state.sortDir = 1;
+      // Особый случай: клик по "Обновлено" — сброс всей сортировки
+      if (key === "fuel_updated_at") {
+        state.sorters = [];
+        render();
+        return;
       }
+      
+      const existingIndex = state.sorters.findIndex(s => s.key === key);
+      
+      if (existingIndex !== -1) {
+        state.sorters.splice(existingIndex, 1);
+        if (state.sorters.length === 0) {
+          state.sorters = [{ key: "distance_km", dir: 1 }];
+        }
+      } else {
+        state.sorters.push({ key, dir: 1 });
+      }
+      
       render();
     });
+    
     container.appendChild(btn);
   });
   
@@ -1516,19 +1581,48 @@ function render() {
 
   // Обновляем заголовки таблицы (десктоп)
   document.querySelectorAll("thead th").forEach(th => {
-    th.classList.toggle("sorted", th.dataset.key === state.sortKey);
+    const key = th.dataset.key;
+    const sorter = state.sorters.find(s => s.key === key);
+    const index = state.sorters.findIndex(s => s.key === key);
+    
+    th.classList.toggle("sorted", !!sorter);
     const arrow = th.querySelector(".arrow");
-    arrow.textContent = th.dataset.key === state.sortKey ? (state.sortDir === 1 ? "▲" : "▼") : "";
+    
+    if (sorter) {
+      const dir = sorter.dir === 1 ? "↑" : "↓";
+      const pos = state.sorters.length > 1 ? ` (${index + 1})` : "";
+      arrow.textContent = dir + pos;
+    } else {
+      arrow.textContent = "";
+    }
   });
 
   renderMap(sorted);
 }
 
+// ---------- Обработчики кликов по заголовкам ----------
 document.querySelectorAll("thead th").forEach(th => {
   th.addEventListener("click", () => {
     const key = th.dataset.key;
-    if (state.sortKey === key) { state.sortDir *= -1; }
-    else { state.sortKey = key; state.sortDir = 1; }
+    
+    // Особый случай: клик по "Обновлено" — сброс всей сортировки
+    if (key === "fuel_updated_at") {
+      state.sorters = [];
+      render();
+      return;
+    }
+    
+    const existingIndex = state.sorters.findIndex(s => s.key === key);
+    
+    if (existingIndex !== -1) {
+      state.sorters.splice(existingIndex, 1);
+      if (state.sorters.length === 0) {
+        state.sorters = [{ key: "distance_km", dir: 1 }];
+      }
+    } else {
+      state.sorters.push({ key, dir: 1 });
+    }
+    
     render();
   });
 });
