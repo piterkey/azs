@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>АЗС рядом — наличие топлива</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #15181a;
+    --panel: #1d2124;
+    --panel-2: #23282b;
+    --line: #31373b;
+    --text: #eef1f2;
+    --muted: #8b969c;
+    --accent: #f2a93b;
+    --accent-dim: #7a5a20;
+    --good: #4fbf83;
+    --good-bg: rgba(79,191,131,0.12);
+    --bad: #e2634a;
+    --bad-bg: rgba(226,99,74,0.12);
+    --warn: #d9b34a;
+    --warn-bg: rgba(217,179,74,0.12);
+    --flat: #6b757a;
+    --flat-bg: rgba(107,117,122,0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 500px at 12% -10%, rgba(242,169,59,0.08), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    padding: 32px 20px 80px;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { font-family: 'IBM Plex Mono', monospace; color: var(--muted); font-size: 13px; margin: 0; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .controls-wrapper {
+    position: relative;
+    margin: 24px 0 20px;
+    transition: all 0.25s ease;
+  }
+  .controls-wrapper.collapsed .controls {
+    display: none;
+  }
+  .controls-wrapper.collapsed .controls-toggle-label {
+    border-radius: 14px;
+  }
+
+  .controls-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px 14px 0 0;
+    padding: 10px 18px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+  }
+  .controls-toggle:hover {
+    border-color: var(--accent);
+  }
+  .controls-toggle-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .controls-toggle-label .arrow-icon {
+    display: inline-block;
+    transition: transform 0.25s ease;
+    font-size: 14px;
+  }
+  .controls-wrapper.collapsed .controls-toggle-label .arrow-icon {
+    transform: rotate(-90deg);
+  }
+  .controls-toggle .badge-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 2px 10px;
+    border-radius: 999px;
+    opacity: 0.8;
+  }
+  .controls-wrapper.collapsed .controls-toggle {
+    border-radius: 14px;
+  }
+
+  .controls {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 28px;
+  }
+  .controls-wrapper.collapsed .controls {
+    display: none;
+  }
+
+  .control-block { display: flex; flex-direction: column; gap: 8px; grid-column: span 1; }
+  .control-block.full { grid-column: 1 / -1; }
+
+  .control-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+  .control-label b { color: var(--accent); font-weight: 600; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%; height: 4px; border-radius: 2px;
+    background: var(--line); outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 3px solid #1a1d1f;
+    cursor: pointer; box-shadow: 0 0 0 1px var(--accent-dim);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 3px solid #1a1d1f; cursor: pointer;
+  }
+
+  .range-with-input {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .range-with-input input[type=range] {
+    flex: 1;
+  }
+  .range-with-input .num-input-wrap {
+    position: relative;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .range-with-input .num-input-wrap input[type=number] {
+    width: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .range-with-input .num-input-wrap input[type=number]::-webkit-outer-spin-button,
+  .range-with-input .num-input-wrap input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .range-with-input .num-input-wrap .step-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 2px;
+    opacity: 0.6;
+  }
+  .range-with-input .num-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .limit-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .limit-row .num-input-wrap {
+    position: relative;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .limit-row .num-input-wrap input[type=number] {
+    width: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .limit-row .num-input-wrap input[type=number]::-webkit-outer-spin-button,
+  .limit-row .num-input-wrap input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .limit-row .num-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .limit-row .num-label b {
+    color: var(--text);
+  }
+
+  .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .chip.active { color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .chip:hover { border-color: var(--accent); }
+
+  select, input[type=number] {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+  select:focus, input[type=number]:focus { outline: none; border-color: var(--accent); }
+
+  .coord-actions { display: flex; gap: 8px; margin-top: 4px; }
+  #coordInput.err { border-color: var(--bad); }
+  #coordHint { color: var(--bad); font-family: 'IBM Plex Mono', monospace; }
+
+  .count-line { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); margin: 0; }
+  .count-line b { color: var(--text); }
+  .count-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .refresh-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+  }
+  .refresh-bar .url-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .refresh-bar .url-section input[type=text] {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-width: 120px;
+  }
+  .refresh-bar .url-section input[type=text]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--accent); color: var(--bg); }
+  .btn:disabled { opacity: .5; cursor: default; background: transparent; color: var(--accent); }
+  .btn.ghost { border-color: var(--line); color: var(--muted); }
+  .btn.ghost:hover { background: var(--panel-2); color: var(--text); }
+  .btn.small { padding: 7px 12px; font-size: 11.5px; }
+  .btn.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .btn.primary:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+  .spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(242,169,59,0.25); border-top-color: var(--accent);
+    animation: spin .7s linear infinite; display: none;
+  }
+  .btn.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refresh-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .refresh-status-col {
+    flex: 1;
+    min-width: 220px;
+  }
+  .refresh-status.err { color: var(--bad); }
+  .refresh-status.ok { color: var(--good); }
+  #fileInput { display: none; }
+
+  .progress-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    overflow: hidden;
+    margin-top: 10px;
+    display: none;
+  }
+  .progress-track.active { display: block; }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .15s ease;
+  }
+  .progress-fill.indeterminate {
+    width: 40% !important;
+    animation: indeterminate 1.1s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+
+  #map {
+    width: 100%;
+    height: 380px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    margin-bottom: 8px;
+    background: var(--panel);
+    cursor: crosshair;
+  }
+  .map-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin: 0 0 20px;
+  }
+  .leaflet-popup-content-wrapper { background: var(--panel-2); color: var(--text); border-radius: 10px; }
+  .leaflet-popup-tip { background: var(--panel-2); }
+  .popup-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .popup-line { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .apply-filters-row {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    margin-top: 4px;
+  }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  thead th {
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  thead th:hover { color: var(--accent); }
+  thead th.sorted { color: var(--accent); }
+  thead th .arrow { opacity: .6; margin-left: 4px; font-size: 10px; }
+
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody tr.highlighted { background: rgba(242,169,59,0.08); }
+
+  .num { font-family: 'IBM Plex Mono', monospace; color: var(--text); white-space: nowrap; }
+  .addr { color: var(--text); }
+  .addr .brand { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .badge.available { color: var(--good); background: var(--good-bg); }
+  .badge.unavailable { color: var(--bad); background: var(--bad-bg); }
+  .badge.probably_unavailable { color: var(--warn); background: var(--warn-bg); }
+  .badge.unknown, .badge.no_data { color: var(--flat); background: var(--flat-bg); }
+  .badge.closed { color: var(--flat); background: var(--flat-bg); text-decoration: line-through; }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .updated { font-family: 'IBM Plex Mono', monospace; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .price { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+
+  footer { margin-top: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); text-align: center; }
+
+  @media (max-width: 640px) {
+    .controls { grid-template-columns: 1fr; }
+    #map { height: 280px; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tbody tr { border-bottom: 1px solid var(--line); padding: 12px 14px; }
+    tbody td { border: none; padding: 4px 0; display: flex; justify-content: space-between; gap: 12px; }
+    tbody td::before { content: attr(data-label); color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; }
+    .addr { flex-direction: column; }
+    .range-with-input { flex-wrap: wrap; }
+    .range-with-input .num-input-wrap { width: 70px; }
+    .refresh-bar .url-section { flex-wrap: wrap; }
+    .controls-toggle { flex-wrap: wrap; }
+    .apply-filters-row { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Карта АЗС · Альфа-Банк</p>
+    <h1>АЗС рядом с точкой</h1>
+    <p class="sub">центр <b id="centerLabel">55.864492, 37.610435</b> · страница собрана: <span id="pageBuiltLabel">16.08.2026 09:49 UTC</span> · данные загружены: <b id="dataLoadedLabel">ещё не загружены</b></p>
+  </header>
+
+  <div class="refresh-bar">
+    <div class="url-section">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;">URL данных:</span>
+      <input type="text" id="apiUrlInput" value="https://alfabank.ru/api/v1/azs-stations/public/stations" placeholder="https://...">
+      <button class="btn small" id="applyUrlBtn">Загрузить</button>
+      <button class="btn ghost small" id="resetUrlBtn">Сбросить</button>
+    </div>
+    <button class="btn" id="refreshBtn">
+      <span class="spinner"></span><span id="refreshBtnLabel">Обновить</span>
+    </button>
+    <button class="btn ghost" id="fileBtn">Загрузить JSON</button>
+    <input type="file" id="fileInput" accept="application/json,.json">
+    <div class="refresh-status-col">
+      <span class="refresh-status" id="refreshStatus">данные из выгрузки: 16.08.2026 09:49 UTC · станций: 0</span>
+      <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <div class="controls-wrapper" id="controlsWrapper">
+    <div class="controls-toggle" id="controlsToggle">
+      <span class="controls-toggle-label">
+        <span class="arrow-icon">▼</span>
+        <span>Фильтры и настройки</span>
+      </span>
+      <span class="badge-count" id="filterBadge">все фильтры</span>
+    </div>
+    <div class="controls" id="controlsPanel">
+      <div class="control-block">
+        <label class="control-label">Адрес (город, улица, дом)</label>
+        <input type="text" id="addressInput" placeholder="напр. Москва, Тверская ул., 1" value="">
+        <div class="coord-actions">
+          <button class="btn small" id="applyAddressBtn">Найти адрес</button>
+          <button class="btn ghost small" id="resetAddressBtn">Очистить</button>
+        </div>
+      </div>
+      <div class="control-block">
+        <label class="control-label">Точка отсчёта <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span></label>
+        <input type="text" id="coordInput" value="55.86449228891424, 37.61043463745005" placeholder="широта, долгота — напр. 55.864492, 37.610434">
+        <div class="coord-actions">
+          <button class="btn small" id="applyCoordBtn">Применить</button>
+          <button class="btn ghost small" id="resetCoordBtn">Сбросить</button>
+        </div>
+      </div>
+      <div class="control-block">
+        <label class="control-label">Марка топлива</label>
+        <select id="fuelSelect"></select>
+        <label class="control-label" style="margin-top:8px;">Бренд АЗС</label>
+        <select id="brandFilter"><option value="">Все бренды</option></select>
+      </div>
+      <div class="control-block full">
+        <label class="control-label">Радиус от точки <span>до <b id="distVal">5.0</b> км (максимум — <span id="maxDistLabel"></span> км)</span></label>
+        <div class="range-with-input">
+          <input type="range" id="distSlider" min="0" step="0.1" value="5.00">
+          <span class="num-label">км</span>
+          <div class="num-input-wrap">
+            <input type="number" id="distInput" min="0" step="0.1" value="5.0">
+            <div class="step-hint">шаг 0.1 / 0.5 / 1</div>
+          </div>
+        </div>
+        <div class="limit-row">
+          <span class="num-label">Показать <b id="limitCountLabel">все</b> АЗС</span>
+          <div class="num-input-wrap">
+            <input type="number" id="limitInput" min="0" step="1" value="0" placeholder="все">
+          </div>
+          <span class="num-label">ближайших</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-left:auto;" id="limitHint">0 = без ограничений</span>
+        </div>
+      </div>
+      <div class="control-block full">
+        <label class="control-label">Наличие топлива</label>
+        <div class="toggles" id="statusToggles"></div>
+      </div>
+      <div class="apply-filters-row">
+        <button class="btn primary" id="applyFiltersBtn">Применить фильтры</button>
+        <button class="btn ghost" id="resetFiltersBtn">Сбросить всё</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="count-row">
+    <p class="count-line">Показано: <b id="shownCount">0</b> из <b id="totalCount">0</b> АЗС</p>
+    <button class="btn ghost small" id="toggleMapBtn">Скрыть карту</button>
+  </div>
+
+  <div id="mapBlock">
+    <div id="map"></div>
+    <p class="map-hint">Кликните по карте, чтобы задать новую точку отсчёта</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th data-key="distance_km" data-type="num">Расст., км<span class="arrow"></span></th>
+        <th data-key="address" data-type="str">Адрес / бренд<span class="arrow"></span></th>
+        <th data-key="fuel_status" data-type="str">Топливо<span class="arrow"></span></th>
+        <th data-key="fuel_price" data-type="num">Цена, ₽<span class="arrow"></span></th>
+        <th data-key="fuel_updated_at" data-type="date">Обновлено<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="empty" id="emptyState" style="display:none;">Нет АЗС, подходящих под выбранные фильтры</div>
+
+  <footer>Сгенерировано из выгрузки alfabank.ru/azs · 0 станций в базе · тайлы © OpenStreetMap</footer>
+</div>
+
+<script>
+const ORIGINAL_API_URL = "https://alfabank.ru/api/v1/azs-stations/public/stations";
+const ORIGINAL_CENTER_LAT = 55.86449228891424;
+const ORIGINAL_CENTER_LON = 37.61043463745005;
+const DEFAULT_FUEL = "AI95";
+
+let DATA = [];
+let API_URL = ORIGINAL_API_URL;
+
+const STATUS_LABELS = {"available": "Есть", "unavailable": "Нет", "probably_unavailable": "Вероятно нет", "unknown": "Неизвестно", "closed": "Закрыта", "no_data": "Нет данных"};
+const STATUS_ORDER = ["available", "probably_unavailable", "unknown", "unavailable", "closed", "no_data"];
+const FUEL_LABELS = {"AI92": "АИ-92", "AI95": "АИ-95", "AI98_100": "АИ-98/100", "DIESEL": "ДТ"};
+const FUEL_ORDER = ["AI92", "AI95", "AI98_100", "DIESEL"];
+let BRANDS = [];
+
+// По умолчанию активен только статус "available" (Есть)
+let state = {
+  centerLat: ORIGINAL_CENTER_LAT,
+  centerLon: ORIGINAL_CENTER_LON,
+  maxDist: 5.00,
+  limit: 0, // 0 = без ограничений
+  fuel: DEFAULT_FUEL,
+  activeStatuses: new Set(["available"]),
+  brand: "",
+  sortKey: "distance_km",
+  sortDir: 1,
+};
+
+// ---------- Гео / формат ----------
+function haversineKm(lon1, lat1, lon2, lat2) {
+  const R = 6371.0088;
+  const toRad = d => d * Math.PI / 180;
+  const phi1 = toRad(lat1), phi2 = toRad(lat2);
+  const dphi = toRad(lat2 - lat1);
+  const dlambda = toRad(lon2 - lon1);
+  const a = Math.sin(dphi/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dlambda/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffH = diffMs / 3600000;
+  if (diffH < 1) return Math.round(diffMs/60000) + " мин назад";
+  if (diffH < 24) return Math.round(diffH) + " ч назад";
+  return Math.round(diffH/24) + " дн назад";
+}
+
+function setStatus(text, cls) {
+  const el = document.getElementById("refreshStatus");
+  el.textContent = text;
+  el.className = "refresh-status" + (cls ? " " + cls : "");
+}
+
+function showProgress(percent) {
+  const track = document.getElementById("progressTrack");
+  const fill = document.getElementById("progressFill");
+  track.classList.add("active");
+  if (percent == null) {
+    fill.classList.add("indeterminate");
+    fill.style.width = "";
+  } else {
+    fill.classList.remove("indeterminate");
+    fill.style.width = Math.max(0, Math.min(100, percent)).toFixed(0) + "%";
+  }
+}
+
+function hideProgress() {
+  const track = document.getElementById("progressTrack");
+  const fill = document.getElementById("progressFill");
+  track.classList.remove("active");
+  fill.classList.remove("indeterminate");
+  fill.style.width = "0%";
+}
+
+function fmtBytes(n) {
+  if (n < 1024) return n + " Б";
+  if (n < 1024*1024) return (n/1024).toFixed(0) + " КБ";
+  return (n/1024/1024).toFixed(1) + " МБ";
+}
+
+// ---------- Загрузка новых сырых данных ----------
+function normalizeRaw(rawStations) {
+  const out = [];
+  for (const st of rawStations) {
+    const loc = (st.address && st.address.location) || {};
+    const lat = loc.latitude, lon = loc.longitude;
+    if (lat == null || lon == null) continue;
+    const fuels = {};
+    FUEL_ORDER.forEach(cat => {
+      const f = (st.fuels || []).find(x => x.category === cat);
+      fuels[cat] = {
+        status: f ? f.status : "no_data",
+        price: f ? f.price : null,
+        updated_at: f ? f.last_transaction_at : null,
+      };
+    });
+    out.push({
+      station_id: st.station_id,
+      brand: (st.brand && st.brand.name) || "Без бренда",
+      address: st.address && st.address.fullname,
+      latitude: lat,
+      longitude: lon,
+      fuels: fuels,
+    });
+  }
+  return out;
+}
+
+function rebuildBrandOptions() {
+  BRANDS = Array.from(new Set(DATA.map(s => s.brand))).sort((a,b) => a.localeCompare(b, "ru"));
+  const sel = document.getElementById("brandFilter");
+  const prevBrand = state.brand;
+  sel.innerHTML = '<option value="">Все бренды</option>';
+  BRANDS.forEach(b => {
+    const opt = document.createElement("option");
+    opt.value = b; opt.textContent = b;
+    sel.appendChild(opt);
+  });
+  state.brand = BRANDS.includes(prevBrand) ? prevBrand : "";
+  sel.value = state.brand;
+}
+
+function applyNewRawData(rawStations, sourceLabel) {
+  setStatus(`разбираю данные (${rawStations.length} АЗС)…`);
+  showProgress(null);
+  DATA = normalizeRaw(rawStations);
+  rebuildBrandOptions();
+  document.getElementById("totalCount").textContent = DATA.length;
+  updateMaxDistBound(true);
+  applyFilters();
+  hideProgress();
+  const now = new Date().toLocaleString("ru-RU");
+  setStatus(`обновлено: ${sourceLabel}, ${now} · станций: ${DATA.length}`, "ok");
+  document.getElementById("dataLoadedLabel").textContent = now + " (" + sourceLabel + ")";
+  updateFilterBadge();
+}
+
+async function fetchFromUrl(url) {
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true; btn.classList.add("loading");
+  setStatus("подключение к " + url + "…");
+  showProgress(null);
+  try {
+    const resp = await fetch(url, { cache: "no-store" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+    const totalHeader = resp.headers.get("Content-Length");
+    const total = totalHeader ? parseInt(totalHeader, 10) : 0;
+
+    if (!resp.body || !window.ReadableStream) {
+      setStatus("загрузка данных…");
+      const raw = await resp.json();
+      applyNewRawData(raw, "с сайта (" + url + ")");
+      return;
+    }
+
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) {
+        showProgress(received / total * 100);
+        setStatus(`загрузка данных: ${fmtBytes(received)} из ${fmtBytes(total)}…`);
+      } else {
+        showProgress(null);
+        setStatus(`загрузка данных: ${fmtBytes(received)}…`);
+      }
+    }
+
+    setStatus(`разбираю ответ (${fmtBytes(received)})…`);
+    showProgress(100);
+    const fullBytes = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) { fullBytes.set(chunk, offset); offset += chunk.length; }
+    const text = new TextDecoder("utf-8").decode(fullBytes);
+    const raw = JSON.parse(text);
+
+    applyNewRawData(raw, "с сайта (" + url + ")");
+  } catch (err) {
+    hideProgress();
+    setStatus("Не удалось загрузить данные: " + err.message, "err");
+    throw err;
+  } finally {
+    btn.disabled = false; btn.classList.remove("loading");
+  }
+}
+
+// ---------- Обработчики для URL ----------
+document.getElementById("applyUrlBtn").addEventListener("click", async () => {
+  const input = document.getElementById("apiUrlInput");
+  let url = input.value.trim();
+  if (!url) {
+    setStatus("Введите URL", "err");
+    return;
+  }
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+    input.value = url;
+  }
+  API_URL = url;
+  try {
+    await fetchFromUrl(API_URL);
+  } catch (e) {}
+});
+
+document.getElementById("resetUrlBtn").addEventListener("click", () => {
+  document.getElementById("apiUrlInput").value = ORIGINAL_API_URL;
+  API_URL = ORIGINAL_API_URL;
+});
+
+document.getElementById("apiUrlInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    document.getElementById("applyUrlBtn").click();
+  }
+});
+
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    await fetchFromUrl(API_URL);
+  } catch (e) {}
+});
+
+// ---------- Загрузка из файла ----------
+document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus(`чтение файла ${file.name} (${fmtBytes(file.size)})…`);
+  showProgress(0);
+  const reader = new FileReader();
+  reader.onprogress = (ev) => {
+    if (ev.lengthComputable) {
+      showProgress(ev.loaded / ev.total * 100);
+      setStatus(`чтение файла: ${fmtBytes(ev.loaded)} из ${fmtBytes(ev.total)}…`);
+    }
+  };
+  reader.onload = () => {
+    try {
+      setStatus("разбираю файл…");
+      showProgress(100);
+      const raw = JSON.parse(reader.result);
+      applyNewRawData(raw, "из файла " + file.name);
+    } catch (err) {
+      hideProgress();
+      setStatus("Не удалось разобрать файл: " + err.message, "err");
+    }
+  };
+  reader.onerror = () => { hideProgress(); setStatus("Не удалось прочитать файл", "err"); };
+  reader.readAsText(file, "utf-8");
+});
+
+// ---------- Точка отсчёта и радиус ----------
+function farthestDistanceKm() {
+  let max = 0;
+  for (const s of DATA) {
+    const d = haversineKm(state.centerLon, state.centerLat, s.longitude, s.latitude);
+    if (d > max) max = d;
+  }
+  return max;
+}
+
+function updateMaxDistBound(resetToInitial) {
+  if (!DATA.length) {
+    document.getElementById("distSlider").max = "0";
+    document.getElementById("maxDistLabel").textContent = "0.0";
+    return;
+  }
+  const farMax = farthestDistanceKm();
+  const slider = document.getElementById("distSlider");
+  slider.max = farMax.toFixed(2);
+  document.getElementById("maxDistLabel").textContent = farMax.toFixed(1);
+  if (resetToInitial || state.maxDist > farMax) {
+    state.maxDist = Math.min(state.maxDist, farMax) || farMax;
+  }
+  slider.value = state.maxDist.toFixed(2);
+  document.getElementById("distVal").textContent = state.maxDist.toFixed(1);
+  document.getElementById("distInput").value = state.maxDist.toFixed(1);
+}
+
+function setCenter(lat, lon, opts) {
+  opts = opts || {};
+  state.centerLat = lat;
+  state.centerLon = lon;
+  document.getElementById("coordInput").value = lat.toFixed(6) + ", " + lon.toFixed(6);
+  document.getElementById("coordInput").classList.remove("err");
+  document.getElementById("coordHint").textContent = "";
+  document.getElementById("centerLabel").textContent = lat.toFixed(6) + ", " + lon.toFixed(6);
+  centerMarker.setLatLng([lat, lon]);
+  updateMaxDistBound(!!opts.expandToFarthest);
+  if (!opts.skipPan) map.panTo([lat, lon]);
+  applyFilters();
+  reverseGeocode(lat, lon);
+}
+
+// ---------- Геокодирование ----------
+async function geocodeAddress(address) {
+  if (!address.trim()) return null;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'AlfaBankAzsMap/1.0' }
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.length) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch {
+    return null;
+  }
+}
+
+async function reverseGeocode(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`;
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'AlfaBankAzsMap/1.0' }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const displayName = data.display_name || "";
+    document.getElementById("addressInput").value = displayName;
+  } catch {}
+}
+
+// ---------- Обработка адреса ----------
+document.getElementById("applyAddressBtn").addEventListener("click", async () => {
+  const input = document.getElementById("addressInput");
+  const address = input.value;
+  if (!address.trim()) return;
+  const result = await geocodeAddress(address);
+  if (result) {
+    setCenter(result.lat, result.lon, { expandToFarthest: true });
+  } else {
+    document.getElementById("coordHint").textContent = "Адрес не найден";
+    setTimeout(() => document.getElementById("coordHint").textContent = "", 3000);
+  }
+});
+
+document.getElementById("resetAddressBtn").addEventListener("click", () => {
+  document.getElementById("addressInput").value = "";
+});
+
+document.getElementById("addressInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    document.getElementById("applyAddressBtn").click();
+  }
+});
+
+// ---------- Разбор координат ----------
+function parseCoordText(text) {
+  if (!text) return null;
+
+  const urlMatch = text.match(/g=%5B([^,]+)%2C([^\]&]+)%5D|g=\[([^,]+),([^\]&]+)\]/);
+  if (urlMatch) {
+    const lon = parseFloat(urlMatch[1] || urlMatch[3]);
+    const lat = parseFloat(urlMatch[2] || urlMatch[4]);
+    if (!Number.isNaN(lat) && !Number.isNaN(lon)) return { lat, lon };
+  }
+
+  const nums = text.match(/-?\d+(?:[.,]\d+)?/g);
+  if (!nums || nums.length < 2) return null;
+
+  let a = parseFloat(nums[0].replace(",", "."));
+  let b = parseFloat(nums[1].replace(",", "."));
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+
+  const aIsLat = Math.abs(a) <= 90;
+  const bIsLat = Math.abs(b) <= 90;
+
+  let lat, lon;
+  if (aIsLat && !bIsLat) { lat = a; lon = b; }
+  else if (!aIsLat && bIsLat) { lat = b; lon = a; }
+  else { lat = a; lon = b; }
+
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return { lat, lon };
+}
+
+function applyCoordText() {
+  const input = document.getElementById("coordInput");
+  const parsed = parseCoordText(input.value);
+  if (!parsed) {
+    input.classList.add("err");
+    document.getElementById("coordHint").textContent = "не удалось распознать координаты";
+    return;
+  }
+  setCenter(parsed.lat, parsed.lon, { expandToFarthest: true });
+}
+
+document.getElementById("applyCoordBtn").addEventListener("click", applyCoordText);
+document.getElementById("coordInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") applyCoordText();
+});
+document.getElementById("resetCoordBtn").addEventListener("click", () => {
+  setCenter(ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON, { expandToFarthest: true });
+});
+
+// ---------- Управление радиусом ----------
+const distInput = document.getElementById("distInput");
+const distSlider = document.getElementById("distSlider");
+
+function getProgressiveStep(value) {
+  if (value < 1) return 0.1;
+  if (value < 5) return 0.5;
+  if (value < 20) return 1;
+  if (value < 50) return 5;
+  return 10;
+}
+
+distInput.addEventListener("focus", function() { this.select(); });
+
+distInput.addEventListener("input", function() {
+  let val = parseFloat(this.value);
+  if (isNaN(val) || val < 0) val = 0;
+  const maxVal = parseFloat(distSlider.max) || 100;
+  if (val > maxVal) val = maxVal;
+  state.maxDist = val;
+  distSlider.value = val.toFixed(2);
+  document.getElementById("distVal").textContent = val.toFixed(1);
+  const step = getProgressiveStep(val);
+  document.querySelector('.step-hint').textContent = `шаг ${step}`;
+  this.step = step;
+  // Обновляем количество АЗС в пределах радиуса без применения фильтров
+  updateCountInRadius();
+  updateFilterBadge();
+});
+
+distSlider.addEventListener("input", function() {
+  let val = parseFloat(this.value);
+  state.maxDist = val;
+  document.getElementById("distVal").textContent = val.toFixed(1);
+  distInput.value = val.toFixed(1);
+  const step = getProgressiveStep(val);
+  document.querySelector('.step-hint').textContent = `шаг ${step}`;
+  distInput.step = step;
+  updateCountInRadius();
+  updateFilterBadge();
+});
+
+// ---------- Обновление количества АЗС в радиусе ----------
+function updateCountInRadius() {
+  if (!DATA.length) return;
+  let count = 0;
+  for (const s of DATA) {
+    const distKm = haversineKm(state.centerLon, state.centerLat, s.longitude, s.latitude);
+    if (distKm <= state.maxDist) {
+      count++;
+    }
+  }
+  document.getElementById("limitCountLabel").textContent = count;
+}
+
+// ---------- Лимит количества АЗС (независимый) ----------
+const limitInput = document.getElementById("limitInput");
+
+limitInput.addEventListener("focus", function() { this.select(); });
+
+limitInput.addEventListener("input", function() {
+  let val = parseInt(this.value) || 0;
+  if (val < 0) val = 0;
+  this.value = val;
+  state.limit = val;
+  if (val === 0) {
+    document.getElementById("limitHint").textContent = "0 = без ограничений";
+  } else {
+    document.getElementById("limitHint").textContent = `${val} ближайших`;
+  }
+  updateFilterBadge();
+});
+
+// ---------- Марка топлива / бренд / статус ----------
+function buildFuelSelect() {
+  const sel = document.getElementById("fuelSelect");
+  FUEL_ORDER.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = FUEL_LABELS[cat] || cat;
+    if (cat === DEFAULT_FUEL) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener("change", (e) => {
+    state.fuel = e.target.value;
+    updateFilterBadge();
+  });
+}
+
+function buildStatusToggles() {
+  const box = document.getElementById("statusToggles");
+  STATUS_ORDER.forEach(st => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = STATUS_LABELS[st] || st;
+    if (st === "available") {
+      chip.classList.add("active");
+    }
+    chip.addEventListener("click", () => {
+      if (state.activeStatuses.has(st)) {
+        state.activeStatuses.delete(st);
+        chip.classList.remove("active");
+      } else {
+        state.activeStatuses.add(st);
+        chip.classList.add("active");
+      }
+      updateFilterBadge();
+    });
+    box.appendChild(chip);
+  });
+}
+
+document.getElementById("brandFilter").addEventListener("change", (e) => {
+  state.brand = e.target.value;
+  updateFilterBadge();
+});
+
+// ---------- Применение фильтров ----------
+function applyFilters() {
+  render();
+  updateFilterBadge();
+  // Визуальная обратная связь
+  const btn = document.getElementById("applyFiltersBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "✓ Применено";
+  setTimeout(() => {
+    btn.textContent = originalText;
+  }, 1500);
+}
+
+// ---------- Сброс всех фильтров ----------
+function resetAllFilters() {
+  // Сбрасываем центр
+  setCenter(ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON, { expandToFarthest: true, skipPan: true });
+  
+  // Сбрасываем радиус
+  const maxVal = parseFloat(distSlider.max) || 100;
+  state.maxDist = Math.min(5.0, maxVal);
+  distSlider.value = state.maxDist.toFixed(2);
+  distInput.value = state.maxDist.toFixed(1);
+  document.getElementById("distVal").textContent = state.maxDist.toFixed(1);
+  
+  // Сбрасываем лимит
+  state.limit = 0;
+  limitInput.value = 0;
+  document.getElementById("limitCountLabel").textContent = "все";
+  document.getElementById("limitHint").textContent = "0 = без ограничений";
+  
+  // Сбрасываем бренд
+  state.brand = "";
+  document.getElementById("brandFilter").value = "";
+  
+  // Сбрасываем топливо
+  state.fuel = DEFAULT_FUEL;
+  document.getElementById("fuelSelect").value = DEFAULT_FUEL;
+  
+  // Сбрасываем статусы (только "available")
+  state.activeStatuses = new Set(["available"]);
+  document.querySelectorAll("#statusToggles .chip").forEach(chip => {
+    const statusKey = Object.keys(STATUS_LABELS).find(key => STATUS_LABELS[key] === chip.textContent);
+    if (statusKey === "available") {
+      chip.classList.add("active");
+    } else {
+      chip.classList.remove("active");
+    }
+  });
+  
+  // Сбрасываем адрес
+  document.getElementById("addressInput").value = "";
+  
+  // Сбрасываем координаты в поле ввода
+  document.getElementById("coordInput").value = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
+  document.getElementById("centerLabel").textContent = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
+  centerMarker.setLatLng([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
+  map.panTo([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
+  
+  updateCountInRadius();
+  updateFilterBadge();
+  render();
+}
+
+// ---------- Бейдж фильтров ----------
+function updateFilterBadge() {
+  const badge = document.getElementById("filterBadge");
+  let filters = [];
+  if (state.brand) filters.push("бренд");
+  if (state.fuel !== DEFAULT_FUEL) filters.push("топливо");
+  if (state.activeStatuses.size < STATUS_ORDER.length) filters.push("статус");
+  if (state.limit > 0) filters.push("лимит " + state.limit);
+  if (Math.abs(state.maxDist - 5.0) > 0.01) filters.push("радиус");
+  if (filters.length === 0) {
+    badge.textContent = "все фильтры";
+  } else {
+    badge.textContent = filters.join(", ");
+  }
+}
+
+// ---------- Сборка строк для текущего состояния ----------
+function currentRows() {
+  // Сначала фильтруем по радиусу
+  const rows = [];
+  for (const s of DATA) {
+    const distKm = haversineKm(state.centerLon, state.centerLat, s.longitude, s.latitude);
+    if (distKm > state.maxDist) continue;
+    const fuel = s.fuels[state.fuel] || { status: "no_data", price: null, updated_at: null };
+    if (!state.activeStatuses.has(fuel.status)) continue;
+    if (state.brand && s.brand !== state.brand) continue;
+    rows.push({
+      station_id: s.station_id,
+      brand: s.brand,
+      address: s.address,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      distance_km: Math.round(distKm * 1000) / 1000,
+      fuel_status: fuel.status,
+      fuel_price: fuel.price,
+      fuel_updated_at: fuel.updated_at,
+    });
+  }
+  
+  // Сортируем по расстоянию (всегда по возрастанию для корректного LIMIT)
+  rows.sort((a, b) => a.distance_km - b.distance_km);
+
+  // Применяем LIMIT как в SQL
+  if (state.limit > 0 && rows.length > state.limit) {
+    return rows.slice(0, state.limit);
+  }
+  return rows;
+}
+
+function sortRows(rows) {
+  const { sortKey, sortDir } = state;
+  return rows.slice().sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (sortKey === "fuel_price") { av = parseFloat(av) || -1; bv = parseFloat(bv) || -1; }
+    if (sortKey === "fuel_updated_at") { av = av ? new Date(av).getTime() : -Infinity; bv = bv ? new Date(bv).getTime() : -Infinity; }
+    if (sortKey === "fuel_status") { av = STATUS_ORDER.indexOf(av); bv = STATUS_ORDER.indexOf(bv); }
+    if (typeof av === "string") return av.localeCompare(bv, "ru") * sortDir;
+    return (av - bv) * sortDir;
+  });
+}
+
+// ---------- Карта ----------
+const map = L.map('map', { zoomControl: true }).setView([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+const centerIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:14px;height:14px;border-radius:50%;background:#f2a93b;border:3px solid #15181a;box-shadow:0 0 0 2px #f2a93b;"></div>',
+  iconSize: [14,14],
+  iconAnchor: [7,7],
+});
+const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: centerIcon, zIndexOffset: 1000 })
+  .addTo(map).bindPopup("<b>Точка отсчёта</b>");
+
+map.on('click', (e) => setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true }));
+
+const STATUS_COLOR = {
+  available: "#4fbf83",
+  unavailable: "#e2634a",
+  probably_unavailable: "#d9b34a",
+  unknown: "#6b757a",
+  closed: "#6b757a",
+  no_data: "#6b757a",
+};
+
+function stationIcon(status) {
+  const color = STATUS_COLOR[status] || "#6b757a";
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:11px;height:11px;border-radius:50%;background:${color};border:2px solid #15181a;"></div>`,
+    iconSize: [11,11],
+    iconAnchor: [5,5],
+  });
+}
+
+let markers = [];
+function renderMap(rows) {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  rows.forEach(s => {
+    const marker = L.marker([s.latitude, s.longitude], { icon: stationIcon(s.fuel_status) });
+    marker.bindPopup(`
+      <div class="popup-title">${s.brand}</div>
+      <div class="popup-line">${s.address}</div>
+      <div class="popup-line">${FUEL_LABELS[state.fuel]}: ${STATUS_LABELS[s.fuel_status] || s.fuel_status}${s.fuel_price ? ' · ' + s.fuel_price + ' ₽' : ''}</div>
+      <div class="popup-line">${s.distance_km.toFixed(2)} км · обновлено ${fmtDate(s.fuel_updated_at)}</div>
+    `);
+    marker.on('click', () => highlightRow(s.station_id));
+    marker.addTo(map);
+    markers.push(marker);
+  });
+}
+
+function highlightRow(stationId) {
+  document.querySelectorAll('#tableBody tr').forEach(tr => {
+    tr.classList.toggle('highlighted', tr.dataset.id === stationId);
+  });
+  const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ---------- Таблица ----------
+function render() {
+  const filtered = currentRows();
+  const sorted = sortRows(filtered);
+
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+  document.getElementById("shownCount").textContent = sorted.length;
+  document.getElementById("emptyState").style.display = sorted.length ? "none" : "block";
+
+  // Показываем общее количество в радиусе (без учёта лимита)
+  const totalInRadius = filtered.length;
+  document.getElementById("limitCountLabel").textContent = totalInRadius;
+
+  sorted.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.dataset.id = s.station_id;
+    tr.innerHTML = `
+      <td class="num" data-label="Расстояние">${s.distance_km.toFixed(2)} км</td>
+      <td class="addr" data-label="Адрес">${s.address}<span class="brand">${s.brand || ""}</span></td>
+      <td data-label="Топливо"><span class="badge ${s.fuel_status}"><span class="dot"></span>${STATUS_LABELS[s.fuel_status] || s.fuel_status}</span></td>
+      <td class="price" data-label="Цена">${s.fuel_price ? s.fuel_price + " ₽" : "—"}</td>
+      <td class="updated" data-label="Обновлено">${fmtDate(s.fuel_updated_at)}</td>
+    `;
+    tr.addEventListener('click', () => highlightRow(s.station_id));
+    body.appendChild(tr);
+  });
+
+  document.querySelectorAll("thead th").forEach(th => {
+    th.classList.toggle("sorted", th.dataset.key === state.sortKey);
+    const arrow = th.querySelector(".arrow");
+    arrow.textContent = th.dataset.key === state.sortKey ? (state.sortDir === 1 ? "▲" : "▼") : "";
+  });
+
+  renderMap(sorted);
+}
+
+document.querySelectorAll("thead th").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (state.sortKey === key) { state.sortDir *= -1; }
+    else { state.sortKey = key; state.sortDir = 1; }
+    render();
+  });
+});
+
+// ---------- Скрытие/показ панели фильтров ----------
+const controlsWrapper = document.getElementById("controlsWrapper");
+const controlsToggle = document.getElementById("controlsToggle");
+let filtersVisible = true;
+
+controlsToggle.addEventListener("click", () => {
+  filtersVisible = !filtersVisible;
+  controlsWrapper.classList.toggle("collapsed", !filtersVisible);
+  const arrow = controlsToggle.querySelector(".arrow-icon");
+  arrow.textContent = filtersVisible ? "▼" : "▶";
+  setTimeout(() => map.invalidateSize(), 300);
+});
+
+// ---------- Показать/скрыть карту ----------
+let mapVisible = true;
+document.getElementById("toggleMapBtn").addEventListener("click", () => {
+  mapVisible = !mapVisible;
+  const block = document.getElementById("mapBlock");
+  const btn = document.getElementById("toggleMapBtn");
+  block.style.display = mapVisible ? "" : "none";
+  btn.textContent = mapVisible ? "Скрыть карту" : "Показать карту";
+  if (mapVisible) {
+    setTimeout(() => map.invalidateSize(), 0);
+  }
+});
+
+// ---------- Обработчики кнопок фильтров ----------
+document.getElementById("applyFiltersBtn").addEventListener("click", applyFilters);
+document.getElementById("resetFiltersBtn").addEventListener("click", resetAllFilters);
+
+// ---------- Инициализация ----------
+buildFuelSelect();
+buildStatusToggles();
+rebuildBrandOptions();
+updateMaxDistBound(true);
+
+distInput.step = 0.1;
+document.querySelector('.step-hint').textContent = 'шаг 0.1';
+
+limitInput.value = 0;
+document.getElementById("limitCountLabel").textContent = "все";
+document.getElementById("limitHint").textContent = "0 = без ограничений";
+
+// Первоначальный подсчёт количества в радиусе
+updateCountInRadius();
+applyFilters();
+updateFilterBadge();
+
+if (DATA.length === 0) {
+  fetchFromUrl(API_URL).catch(() => {});
+}
+</script>
+
+</body>
+</html>
