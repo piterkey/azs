@@ -833,36 +833,68 @@ async function fetchFromUrl(url) {
   showProgress(null);
   
   try {
-    setStatus("проверка наличия локального файла stations.json…");
+    // 1. ПРОБУЕМ ЗАГРУЗИТЬ С API
+    setStatus(`загрузка с API ${url}…`);
     try {
-      const localResp = await fetch('stations.json', { cache: "no-store" });
-      if (localResp.ok) {
-        const raw = await localResp.json();
-        applyNewRawData(raw, "из локального файла stations.json");
-        btn.disabled = false; btn.classList.remove("loading");
-        hideProgress();
-        return;
-      }
-    } catch (e) {
-      console.log("Локальный файл не найден, пробуем API");
-    }
-
-    setStatus("загрузка с API…");
-    try {
-      const directResp = await fetch(url, { cache: "no-store" });
+      const directResp = await fetch(url, { 
+        cache: "no-store",
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
       if (directResp.ok) {
         const raw = await directResp.json();
         applyNewRawData(raw, "с сайта");
         btn.disabled = false; btn.classList.remove("loading");
         hideProgress();
         return;
+      } else {
+        // API вернул ошибку (например, 403, 404, 500)
+        setStatus(`API вернул ошибку: ${directResp.status} ${directResp.statusText}`, "err");
+        console.error(`Ошибка API: ${directResp.status} ${directResp.statusText}`);
+        // Продолжаем к локальному файлу
       }
     } catch (e) {
-      console.log("Прямой запрос к API не удался: " + e.message);
+      // Ошибка соединения с API (нет сети, CORS, и т.д.)
+      setStatus(`Ошибка соединения с API: ${e.message}`, "err");
+      console.error("Ошибка соединения с API:", e);
+      // Продолжаем к локальному файлу
     }
 
+    // 2. ПРОБУЕМ ЗАГРУЗИТЬ ЛОКАЛЬНЫЙ ФАЙЛ
+    setStatus("проверка наличия локального файла stations.json…");
+    try {
+      const localResp = await fetch('stations.json', { cache: "no-store" });
+      if (localResp.ok) {
+        const raw = await localResp.json();
+        // Проверяем, что это массив или объект с data
+        if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
+          applyNewRawData(raw, "из локального файла stations.json");
+          btn.disabled = false; btn.classList.remove("loading");
+          hideProgress();
+          return;
+        } else {
+          setStatus("Файл stations.json найден, но содержит невалидные данные", "err");
+          console.error("Невалидный формат stations.json");
+        }
+      } else {
+        setStatus(`Файл stations.json не найден (HTTP ${localResp.status})`, "err");
+      }
+    } catch (e) {
+      setStatus(`Не удалось прочитать файл stations.json: ${e.message}`, "err");
+      console.error("Ошибка чтения stations.json:", e);
+    }
+
+    // 3. ЕСЛИ НИЧЕГО НЕ УДАЛОСЬ — ПОКАЗЫВАЕМ ИНСТРУКЦИЮ
     hideProgress();
-    setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
+    setStatus(
+      "❌ Не удалось загрузить данные.\n" +
+      "• Скачайте файл с API: " + url + "\n" +
+      "• Сохраните его как stations.json рядом с index.html\n" +
+      "• Или загрузите через кнопку 'Загрузить JSON'", 
+      "err"
+    );
     console.error("Все способы загрузки данных не удались");
     
   } catch (err) {
@@ -978,7 +1010,6 @@ function setCenter(lat, lon, opts) {
   updateMaxDistBound(!!opts.expandToFarthest);
   if (!opts.skipPan) map.panTo([lat, lon]);
   
-  // Снимаем выделение при смене центра
   state.selectedStationId = null;
   applyFilters();
   clearSelection();
@@ -1364,8 +1395,12 @@ function sortRows(rows) {
         av = parseFloat(av) || -1;
         bv = parseFloat(bv) || -1;
       } else if (key === "fuel_updated_at") {
-        av = av ? new Date(av).getTime() : -Infinity;
-        bv = bv ? new Date(bv).getTime() : -Infinity;
+        // Для дат: null или undefined считаем самыми старыми
+        const aTime = av ? new Date(av).getTime() : -Infinity;
+        const bTime = bv ? new Date(bv).getTime() : -Infinity;
+        // Сортировка по возрастанию (сначала самые свежие)
+        if (aTime !== bTime) return (aTime - bTime) * dir;
+        continue;
       } else if (key === "fuel_status") {
         av = STATUS_ORDER.indexOf(av);
         bv = STATUS_ORDER.indexOf(bv);
@@ -1428,7 +1463,6 @@ function clearSelection() {
     tr.classList.remove('highlighted');
   });
   map.closePopup();
-  // Перерисовываем карту с текущими данными
   const filtered = currentRows();
   const sorted = sortRows(filtered);
   renderMap(sorted, null);
@@ -1479,27 +1513,17 @@ function renderMap(rows, keepSelectionId) {
       const isMobile = window.innerWidth <= 640;
       const stationId = stationData.station_id;
       
-      // Если станция уже выбрана — снимаем выделение
       if (state.selectedStationId === stationId) {
         clearSelection();
         return;
       }
       
-      // Проверяем, входит ли станция в текущий радиус
       const distKm = haversineKm(state.centerLon, state.centerLat, stationData.latitude, stationData.longitude);
       
-      // Функция для финального выделения
       const applySelection = () => {
-        // Устанавливаем выделение
         state.selectedStationId = stationId;
-        
-        // Перерисовываем таблицу и карту с выделением
         render(stationId);
-        
-        // Центрируем карту
         map.panTo([stationData.latitude, stationData.longitude]);
-        
-        // Открываем попап
         setTimeout(() => {
           const newMarker = markers.find(m => {
             const latLng = m.getLatLng();
@@ -1512,16 +1536,12 @@ function renderMap(rows, keepSelectionId) {
         }, isMobile ? 300 : 100);
       };
       
-      // Если станция за пределами радиуса — расширяем радиус
       if (distKm > state.maxDist) {
         const expanded = expandRadiusToIncludeStation(stationId);
         if (expanded) {
-          // Применяем фильтры, но сохраняем выделение
           const currentSelection = stationId;
           state.selectedStationId = currentSelection;
-          // Перерисовываем с выделением
           render(currentSelection);
-          // Обновляем бейдж
           updateFilterBadge();
           
           map.panTo([stationData.latitude, stationData.longitude]);
@@ -1539,7 +1559,6 @@ function renderMap(rows, keepSelectionId) {
         }
       }
       
-      // Станция уже в радиусе — выделяем
       applySelection();
     });
     
