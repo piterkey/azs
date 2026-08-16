@@ -17,24 +17,17 @@ jobs:
       - name: Download stations data
         run: |
           echo "Начинаем загрузку данных с API Альфа-Банка..."
-          
-          # Эмулируем браузер Chrome с полным набором заголовков
-          if curl -f -o stations.json \
+          if curl -k -f -o stations.json \
              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
              -H "Accept: application/json, text/plain, */*" \
              -H "Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7" \
-             -H "Accept-Encoding: gzip, deflate, br" \
-             -H "Connection: keep-alive" \
              -H "Referer: https://alfabank.ru/" \
              -H "Cache-Control: no-cache" \
-             -H "Pragma: no-cache" \
              --compressed \
              --connect-timeout 30 \
              --max-time 60 \
              "https://alfabank.ru/api/v1/azs-stations/public/stations"; then
             echo "✅ Данные успешно загружены"
-            
-            # Проверяем, что файл содержит валидный JSON (начинается с '[')
             if head -c 1 stations.json | grep -q '['; then
               echo "✅ JSON валидный"
             else
