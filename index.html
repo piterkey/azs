@@ -474,6 +474,13 @@
   .empty { text-align: center; padding: 48px 20px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
 
   footer { margin-top: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); text-align: center; }
+  footer a {
+    transition: all 0.2s ease;
+  }
+  footer a:hover {
+    color: var(--accent) !important;
+    border-bottom-color: var(--accent) !important;
+  }
 
   @media (max-width: 640px) {
     .controls { grid-template-columns: 1fr; }
@@ -489,16 +496,6 @@
     .refresh-bar .url-section { flex-wrap: wrap; }
     .controls-toggle { flex-wrap: wrap; }
     .apply-filters-row { flex-direction: column; align-items: stretch; }
-  }
-    /* Стили для футера и ссылок */
-  footer a {
-    transition: all 0.2s ease;
-  }
-  footer a:hover {
-    color: var(--accent) !important;
-    border-bottom-color: var(--accent) !important;
-  }
-  @media (max-width: 640px) {
     footer {
       font-size: 10px;
       line-height: 1.8;
@@ -515,7 +512,7 @@
   <header>
     <p class="eyebrow">Карта АЗС · Альфа-Банк</p>
     <h1>АЗС рядом с точкой</h1>
-    <p class="sub">центр <b id="centerLabel">55.864492, 37.610435</b> · страница собрана: <span id="pageBuiltLabel">16.08.2026 09:49 UTC</span> · данные загружены: <b id="dataLoadedLabel">ещё не загружены</b></p>
+    <p class="sub">центр <b id="centerLabel">55.864492, 37.610435</b> · страница собрана: <span id="pageBuiltLabel">16.08.2026 09:49 UTC</span></p>
   </header>
 
   <div class="refresh-bar">
@@ -622,16 +619,17 @@
   <div class="empty" id="emptyState" style="display:none;">Нет АЗС, подходящих под выбранные фильтры</div>
 
   <footer>
-  Сгенерировано из выгрузки alfabank.ru/azs · 0 станций в базе · тайлы © OpenStreetMap<br>
-  <span style="font-size:10px; opacity:0.6;">
-    📥 <a href="https://raw.githubusercontent.com/piterkey/azs/main/index.html" 
-         style="color:var(--accent); text-decoration:none; border-bottom:1px dotted var(--accent-dim);"
-         download="index.html">Скачать актуальную версию index.html</a>
-    &nbsp;·&nbsp;
-    <a href="https://github.com/piterkey/azs" 
-       style="color:var(--muted); text-decoration:none; border-bottom:1px dotted var(--line);">GitHub</a>
-  </span>
- </footer>
+    Сгенерировано из выгрузки alfabank.ru/azs · <span id="stationCountFooter">0</span> станций в базе · тайлы © OpenStreetMap<br>
+    <span style="font-size:10px; opacity:0.8;">
+      📥 <a href="https://raw.githubusercontent.com/piterkey/azs/main/index.html" 
+           style="color:var(--accent); text-decoration:none; border-bottom:1px dotted var(--accent-dim);"
+           download="index.html">Скачать актуальную версию index.html</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/piterkey/azs" 
+         style="color:var(--muted); text-decoration:none; border-bottom:1px dotted var(--line);"
+         target="_blank">GitHub</a>
+    </span>
+  </footer>
 </div>
 
 <script>
@@ -649,12 +647,11 @@ const FUEL_LABELS = {"AI92": "АИ-92", "AI95": "АИ-95", "AI98_100": "АИ-98/
 const FUEL_ORDER = ["AI92", "AI95", "AI98_100", "DIESEL"];
 let BRANDS = [];
 
-// По умолчанию активен только статус "available" (Есть)
 let state = {
   centerLat: ORIGINAL_CENTER_LAT,
   centerLon: ORIGINAL_CENTER_LON,
   maxDist: 5.00,
-  limit: 0, // 0 = без ограничений
+  limit: 0,
   fuel: DEFAULT_FUEL,
   activeStatuses: new Set(["available"]),
   brand: "",
@@ -765,12 +762,12 @@ function applyNewRawData(rawStations, sourceLabel) {
   DATA = normalizeRaw(rawStations);
   rebuildBrandOptions();
   document.getElementById("totalCount").textContent = DATA.length;
+  document.getElementById("stationCountFooter").textContent = DATA.length;
   updateMaxDistBound(true);
   applyFilters();
   hideProgress();
   const now = new Date().toLocaleString("ru-RU");
   setStatus(`обновлено: ${sourceLabel}, ${now} · станций: ${DATA.length}`, "ok");
-  document.getElementById("dataLoadedLabel").textContent = now + " (" + sourceLabel + ")";
   updateFilterBadge();
 }
 
@@ -796,12 +793,12 @@ async function fetchFromUrl(url) {
     }
 
     // 2. ПРОБУЕМ ПРЯМОЙ ЗАПРОС К API
-    setStatus("загрузка с API (" + url + ")…");
+    setStatus("загрузка с API…");
     try {
       const directResp = await fetch(url, { cache: "no-store" });
       if (directResp.ok) {
         const raw = await directResp.json();
-        applyNewRawData(raw, "с сайта (" + url + ")");
+        applyNewRawData(raw, "с сайта");
         btn.disabled = false; btn.classList.remove("loading");
         hideProgress();
         return;
@@ -811,7 +808,6 @@ async function fetchFromUrl(url) {
     }
 
     // 3. ЕСЛИ ВСЁ НЕ УДАЛОСЬ — ПОКАЗЫВАЕМ ОШИБКУ
-    // (Прокси убран, т.к. он часто вызывает проблемы)
     hideProgress();
     setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
     console.error("Все способы загрузки данных не удались");
@@ -1060,7 +1056,6 @@ distInput.addEventListener("input", function() {
   const step = getProgressiveStep(val);
   document.querySelector('.step-hint').textContent = `шаг ${step}`;
   this.step = step;
-  // Обновляем количество АЗС в пределах радиуса без применения фильтров
   updateCountInRadius();
   updateFilterBadge();
 });
@@ -1090,7 +1085,7 @@ function updateCountInRadius() {
   document.getElementById("limitCountLabel").textContent = count;
 }
 
-// ---------- Лимит количества АЗС (независимый) ----------
+// ---------- Лимит количества АЗС ----------
 const limitInput = document.getElementById("limitInput");
 
 limitInput.addEventListener("focus", function() { this.select(); });
@@ -1156,7 +1151,6 @@ document.getElementById("brandFilter").addEventListener("change", (e) => {
 function applyFilters() {
   render();
   updateFilterBadge();
-  // Визуальная обратная связь
   const btn = document.getElementById("applyFiltersBtn");
   const originalText = btn.textContent;
   btn.textContent = "✓ Применено";
@@ -1167,31 +1161,25 @@ function applyFilters() {
 
 // ---------- Сброс всех фильтров ----------
 function resetAllFilters() {
-  // Сбрасываем центр
   setCenter(ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON, { expandToFarthest: true, skipPan: true });
   
-  // Сбрасываем радиус
   const maxVal = parseFloat(distSlider.max) || 100;
   state.maxDist = Math.min(5.0, maxVal);
   distSlider.value = state.maxDist.toFixed(2);
   distInput.value = state.maxDist.toFixed(1);
   document.getElementById("distVal").textContent = state.maxDist.toFixed(1);
   
-  // Сбрасываем лимит
   state.limit = 0;
   limitInput.value = 0;
   document.getElementById("limitCountLabel").textContent = "все";
   document.getElementById("limitHint").textContent = "0 = без ограничений";
   
-  // Сбрасываем бренд
   state.brand = "";
   document.getElementById("brandFilter").value = "";
   
-  // Сбрасываем топливо
   state.fuel = DEFAULT_FUEL;
   document.getElementById("fuelSelect").value = DEFAULT_FUEL;
   
-  // Сбрасываем статусы (только "available")
   state.activeStatuses = new Set(["available"]);
   document.querySelectorAll("#statusToggles .chip").forEach(chip => {
     const statusKey = Object.keys(STATUS_LABELS).find(key => STATUS_LABELS[key] === chip.textContent);
@@ -1202,10 +1190,8 @@ function resetAllFilters() {
     }
   });
   
-  // Сбрасываем адрес
   document.getElementById("addressInput").value = "";
   
-  // Сбрасываем координаты в поле ввода
   document.getElementById("coordInput").value = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
   document.getElementById("centerLabel").textContent = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
   centerMarker.setLatLng([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
@@ -1221,16 +1207,13 @@ function updateFilterBadge() {
   const badge = document.getElementById("filterBadge");
   let parts = [];
   
-  // Бренд
   if (state.brand) {
     parts.push(state.brand);
   }
   
-  // Марка топлива (всегда показываем текущую)
   const fuelLabel = FUEL_LABELS[state.fuel] || state.fuel;
   parts.push(fuelLabel);
   
-  // Статусы (активные)
   const activeStatuses = Array.from(state.activeStatuses);
   if (activeStatuses.length > 0 && activeStatuses.length < STATUS_ORDER.length) {
     const statusLabels = activeStatuses.map(s => STATUS_LABELS[s] || s);
@@ -1239,16 +1222,13 @@ function updateFilterBadge() {
     parts.push('все статусы');
   }
   
-  // Радиус (всегда показываем)
   const radius = state.maxDist.toFixed(1);
   parts.push(radius + ' км');
   
-  // Если есть лимит — добавляем его
   if (state.limit > 0) {
     parts.push('лимит ' + state.limit);
   }
   
-  // Если ничего не выбрано (кроме дефолтов) — показываем "все фильтры"
   if (parts.length === 0) {
     badge.textContent = "все фильтры";
   } else {
@@ -1258,7 +1238,6 @@ function updateFilterBadge() {
 
 // ---------- Сборка строк для текущего состояния ----------
 function currentRows() {
-  // Сначала фильтруем по радиусу
   const rows = [];
   for (const s of DATA) {
     const distKm = haversineKm(state.centerLon, state.centerLat, s.longitude, s.latitude);
@@ -1279,10 +1258,8 @@ function currentRows() {
     });
   }
   
-  // Сортируем по расстоянию (всегда по возрастанию для корректного LIMIT)
   rows.sort((a, b) => a.distance_km - b.distance_km);
 
-  // Применяем LIMIT как в SQL
   if (state.limit > 0 && rows.length > state.limit) {
     return rows.slice(0, state.limit);
   }
@@ -1374,7 +1351,6 @@ function render() {
   document.getElementById("shownCount").textContent = sorted.length;
   document.getElementById("emptyState").style.display = sorted.length ? "none" : "block";
 
-  // Показываем общее количество в радиусе (без учёта лимита)
   const totalInRadius = filtered.length;
   document.getElementById("limitCountLabel").textContent = totalInRadius;
 
@@ -1453,16 +1429,13 @@ limitInput.value = 0;
 document.getElementById("limitCountLabel").textContent = "все";
 document.getElementById("limitHint").textContent = "0 = без ограничений";
 
-// Первоначальный подсчёт количества в радиусе
 updateCountInRadius();
 applyFilters();
 updateFilterBadge();
 
-// Загрузка данных: сначала пробуем локальный файл, затем API
 if (DATA.length === 0) {
-  fetchFromUrl(API_URL); // Функция сама проверит локальный файл первой
+  fetchFromUrl(API_URL);
 }
 </script>
-
 </body>
 </html>
