@@ -1433,11 +1433,10 @@ function clearSelection() {
     tr.classList.remove('highlighted');
   });
   map.closePopup();
-  // Используем текущие данные без пересчёта
+  // Перерисовываем карту с текущими данными
   const filtered = currentRows();
   const sorted = sortRows(filtered);
   renderMap(sorted);
-  // Не перерисовываем всю таблицу, только карту
 }
 
 function renderMap(rows) {
@@ -1477,31 +1476,42 @@ function renderMap(rows) {
     marker.on('click', function(e) {
       const isMobile = window.innerWidth <= 640;
       
+      // Если станция уже выбрана — снимаем выделение
       if (state.selectedStationId === s.station_id) {
         clearSelection();
         return;
       }
       
+      // Проверяем, входит ли станция в текущий радиус
       const distKm = haversineKm(state.centerLon, state.centerLat, s.latitude, s.longitude);
+      
+      // Если станция за пределами радиуса — расширяем радиус
       if (distKm > state.maxDist) {
         const expanded = expandRadiusToIncludeStation(s.station_id);
         if (expanded) {
+          // Применяем фильтры и перерисовываем всё
           applyFilters();
+          // После обновления выделяем станцию
           setTimeout(() => {
-            highlightRow(s.station_id);
-            map.panTo([s.latitude, s.longitude]);
-            if (isMobile) {
-              setTimeout(() => {
+            // Находим станцию в обновлённых данных
+            const updatedStation = DATA.find(st => st.station_id === s.station_id);
+            if (updatedStation) {
+              highlightRow(s.station_id);
+              map.panTo([s.latitude, s.longitude]);
+              if (isMobile) {
+                setTimeout(() => {
+                  marker.openPopup();
+                }, 200);
+              } else {
                 marker.openPopup();
-              }, 200);
-            } else {
-              marker.openPopup();
+              }
             }
           }, isMobile ? 300 : 100);
           return;
         }
       }
       
+      // Станция уже в радиусе — просто выделяем
       highlightRow(s.station_id);
       map.panTo([s.latitude, s.longitude]);
       
@@ -1518,6 +1528,7 @@ function renderMap(rows) {
     markers.push(marker);
   });
   
+  // Если есть выбранная станция — центрируем и открываем попап
   if (selectedMarker) {
     const latLng = selectedMarker.getLatLng();
     map.panTo(latLng);
@@ -1530,9 +1541,9 @@ function renderMap(rows) {
     }
   }
 }
-
 // ---------- Выделение строки ----------
 function highlightRow(stationId) {
+  // Если кликнули по уже выделенной станции — снимаем выделение
   if (state.selectedStationId === stationId) {
     clearSelection();
     return;
@@ -1540,33 +1551,45 @@ function highlightRow(stationId) {
   
   state.selectedStationId = stationId;
   
+  // Обновляем классы строк в таблице
   document.querySelectorAll('#tableBody tr').forEach(tr => {
     tr.classList.toggle('highlighted', tr.dataset.id === stationId);
   });
   
-  renderMap(currentRows());
-  
-  const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
-  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  
+  // Находим станцию в данных
   const station = DATA.find(s => s.station_id === stationId);
-  if (station) {
-    map.panTo([station.latitude, station.longitude]);
-    
-    // Открываем попап у соответствующего маркера
-    // Ищем маркер по координатам (с небольшой погрешностью)
-    const marker = markers.find(m => {
-      const latLng = m.getLatLng();
-      return Math.abs(latLng.lat - station.latitude) < 0.0001 && 
-             Math.abs(latLng.lng - station.longitude) < 0.0001;
-    });
-    
-    if (marker) {
-      // Открываем попап с небольшой задержкой для анимации
-      setTimeout(() => {
-        marker.openPopup();
-      }, 150);
-    }
+  if (!station) {
+    console.warn('Станция не найдена в DATA:', stationId);
+    return;
+  }
+  
+  // Центрируем карту на станции
+  map.panTo([station.latitude, station.longitude]);
+  
+  // Обновляем карту с текущими данными
+  const filtered = currentRows();
+  const sorted = sortRows(filtered);
+  renderMap(sorted);
+  
+  // Прокручиваем к строке в таблице
+  const row = document.querySelector(`#tableBody tr[data-id="${stationId}"]`);
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  
+  // Открываем попап у маркера
+  const marker = markers.find(m => {
+    const latLng = m.getLatLng();
+    return Math.abs(latLng.lat - station.latitude) < 0.0001 && 
+           Math.abs(latLng.lng - station.longitude) < 0.0001;
+  });
+  
+  if (marker) {
+    const isMobile = window.innerWidth <= 640;
+    const delay = isMobile ? 300 : 150;
+    setTimeout(() => {
+      marker.openPopup();
+    }, delay);
   }
 }
 
