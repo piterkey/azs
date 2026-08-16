@@ -749,12 +749,10 @@ function applyNewRawData(rawStations, sourceLabel) {
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
   btn.disabled = true; btn.classList.add("loading");
-  setStatus("подключение к " + url + "…");
   showProgress(null);
   
   try {
-    let resp;
-    // Пробуем загрузить локальный файл stations.json из репозитория
+    // 1. СНАЧАЛА ПРОБУЕМ ЛОКАЛЬНЫЙ ФАЙЛ
     setStatus("проверка наличия локального файла stations.json…");
     try {
       const localResp = await fetch('stations.json', { cache: "no-store" });
@@ -766,22 +764,33 @@ async function fetchFromUrl(url) {
         return;
       }
     } catch (e) {
-      // Локальный файл не найден, продолжаем с API
       console.log("Локальный файл не найден, пробуем API");
     }
 
-    // Если локального файла нет, пробуем через прокси для обхода CORS
-    setStatus("загрузка с API через прокси…");
-    const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-    resp = await fetch(proxyUrl, { cache: "no-store" });
-    
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const raw = await resp.json();
-    applyNewRawData(raw, "с сайта (" + url + ")");
+    // 2. ПРОБУЕМ ПРЯМОЙ ЗАПРОС К API
+    setStatus("загрузка с API (" + url + ")…");
+    try {
+      const directResp = await fetch(url, { cache: "no-store" });
+      if (directResp.ok) {
+        const raw = await directResp.json();
+        applyNewRawData(raw, "с сайта (" + url + ")");
+        btn.disabled = false; btn.classList.remove("loading");
+        hideProgress();
+        return;
+      }
+    } catch (e) {
+      console.log("Прямой запрос к API не удался: " + e.message);
+    }
+
+    // 3. ЕСЛИ ВСЁ НЕ УДАЛОСЬ — ПОКАЗЫВАЕМ ОШИБКУ
+    // (Прокси убран, т.к. он часто вызывает проблемы)
+    hideProgress();
+    setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
+    console.error("Все способы загрузки данных не удались");
     
   } catch (err) {
     hideProgress();
-    setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
+    setStatus("Ошибка загрузки: " + err.message, "err");
     console.error("Ошибка загрузки:", err);
   } finally {
     btn.disabled = false; btn.classList.remove("loading");
@@ -1193,7 +1202,7 @@ function updateFilterBadge() {
   const fuelLabel = FUEL_LABELS[state.fuel] || state.fuel;
   parts.push(fuelLabel);
   
-  // Статус (активные)
+  // Статусы (активные)
   const activeStatuses = Array.from(state.activeStatuses);
   if (activeStatuses.length > 0 && activeStatuses.length < STATUS_ORDER.length) {
     const statusLabels = activeStatuses.map(s => STATUS_LABELS[s] || s);
@@ -1202,7 +1211,16 @@ function updateFilterBadge() {
     parts.push('все статусы');
   }
   
-  // Если нет ни бренда, ни активных статусов (кроме "Есть" по умолчанию)
+  // Радиус (всегда показываем)
+  const radius = state.maxDist.toFixed(1);
+  parts.push(radius + ' км');
+  
+  // Если есть лимит — добавляем его
+  if (state.limit > 0) {
+    parts.push('лимит ' + state.limit);
+  }
+  
+  // Если ничего не выбрано (кроме дефолтов) — показываем "все фильтры"
   if (parts.length === 0) {
     badge.textContent = "все фильтры";
   } else {
