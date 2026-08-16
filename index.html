@@ -1440,7 +1440,9 @@ function renderMap(rows, keepSelectionId) {
   markers = [];
   selectedMarker = null;
   
-  const selectionId = keepSelectionId !== undefined ? keepSelectionId : state.selectedStationId;
+  const selectionId = (keepSelectionId !== undefined && keepSelectionId !== null) 
+    ? keepSelectionId 
+    : state.selectedStationId;
   
   rows.forEach(s => {
     const isSelected = (selectionId === s.station_id);
@@ -1477,18 +1479,51 @@ function renderMap(rows, keepSelectionId) {
       const isMobile = window.innerWidth <= 640;
       const stationId = stationData.station_id;
       
+      // Если станция уже выбрана — снимаем выделение
       if (state.selectedStationId === stationId) {
         clearSelection();
         return;
       }
       
+      // Проверяем, входит ли станция в текущий радиус
       const distKm = haversineKm(state.centerLon, state.centerLat, stationData.latitude, stationData.longitude);
       
+      // Функция для финального выделения
+      const applySelection = () => {
+        // Устанавливаем выделение
+        state.selectedStationId = stationId;
+        
+        // Перерисовываем таблицу и карту с выделением
+        render(stationId);
+        
+        // Центрируем карту
+        map.panTo([stationData.latitude, stationData.longitude]);
+        
+        // Открываем попап
+        setTimeout(() => {
+          const newMarker = markers.find(m => {
+            const latLng = m.getLatLng();
+            return Math.abs(latLng.lat - stationData.latitude) < 0.0001 && 
+                   Math.abs(latLng.lng - stationData.longitude) < 0.0001;
+          });
+          if (newMarker) {
+            newMarker.openPopup();
+          }
+        }, isMobile ? 300 : 100);
+      };
+      
+      // Если станция за пределами радиуса — расширяем радиус
       if (distKm > state.maxDist) {
         const expanded = expandRadiusToIncludeStation(stationId);
         if (expanded) {
-          state.selectedStationId = stationId;
-          render(stationId);
+          // Применяем фильтры, но сохраняем выделение
+          const currentSelection = stationId;
+          state.selectedStationId = currentSelection;
+          // Перерисовываем с выделением
+          render(currentSelection);
+          // Обновляем бейдж
+          updateFilterBadge();
+          
           map.panTo([stationData.latitude, stationData.longitude]);
           setTimeout(() => {
             const newMarker = markers.find(m => {
@@ -1504,19 +1539,8 @@ function renderMap(rows, keepSelectionId) {
         }
       }
       
-      state.selectedStationId = stationId;
-      render(stationId);
-      map.panTo([stationData.latitude, stationData.longitude]);
-      setTimeout(() => {
-        const newMarker = markers.find(m => {
-          const latLng = m.getLatLng();
-          return Math.abs(latLng.lat - stationData.latitude) < 0.0001 && 
-                 Math.abs(latLng.lng - stationData.longitude) < 0.0001;
-        });
-        if (newMarker) {
-          newMarker.openPopup();
-        }
-      }, isMobile ? 200 : 100);
+      // Станция уже в радиусе — выделяем
+      applySelection();
     });
     
     marker.addTo(map);
@@ -1627,7 +1651,9 @@ function render(keepSelectionId) {
   const totalInRadius = filtered.length;
   document.getElementById("limitCountLabel").textContent = totalInRadius;
 
-  const selectionId = keepSelectionId || state.selectedStationId;
+  const selectionId = (keepSelectionId !== undefined && keepSelectionId !== null) 
+    ? keepSelectionId 
+    : state.selectedStationId;
   
   sorted.forEach(s => {
     const tr = document.createElement("tr");
@@ -1647,7 +1673,8 @@ function render(keepSelectionId) {
       if (distKm > state.maxDist) {
         const expanded = expandRadiusToIncludeStation(s.station_id);
         if (expanded) {
-          applyFilters();
+          state.selectedStationId = s.station_id;
+          render(s.station_id);
           setTimeout(() => {
             highlightRow(s.station_id);
           }, 100);
