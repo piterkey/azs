@@ -1449,6 +1449,9 @@ function stationIcon(status) {
 let markers = [];
 let selectedMarker = null;
 
+// Флаг для предотвращения срабатывания clearSelection при программном удалении маркеров
+window.isProgrammaticClose = false;
+
 // ---------- Снятие выделения ----------
 function clearSelection() {
   state.selectedStationId = null;
@@ -1463,8 +1466,11 @@ function clearSelection() {
 
 // ---------- Отрисовка карты ----------
 function renderMap(rows, keepSelectionId) {
+  // Устанавливаем флаг, чтобы игнорировать popupclose при удалении маркеров
+  window.isProgrammaticClose = true;
   markers.forEach(m => map.removeLayer(m));
   markers = [];
+  window.isProgrammaticClose = false;
   selectedMarker = null;
   
   const selectionId = (keepSelectionId !== undefined && keepSelectionId !== null) 
@@ -1497,12 +1503,17 @@ function renderMap(rows, keepSelectionId) {
     const stationData = s;
     
     marker.on('popupclose', () => {
+      // Если закрытие вызвано программно (перерисовка), игнорируем
+      if (window.isProgrammaticClose) return;
       if (state.selectedStationId === stationData.station_id) {
         clearSelection();
       }
     });
     
     marker.on('click', function(e) {
+      // Предотвращаем всплытие клика на карту
+      L.DomEvent.stopPropagation(e);
+      
       const stationId = stationData.station_id;
       
       // Проверяем, входит ли станция в текущий радиус
@@ -1564,20 +1575,8 @@ function highlightRow(stationId) {
   // Перерисовываем таблицу и карту с выделением
   render(stationId);
   
-  // Центрируем карту на станции
+  // Центрируем карту на станции (попап откроется автоматически в renderMap)
   map.panTo([station.latitude, station.longitude]);
-  
-  // Открываем попап
-  setTimeout(() => {
-    const marker = markers.find(m => {
-      const latLng = m.getLatLng();
-      return Math.abs(latLng.lat - station.latitude) < 0.0001 && 
-             Math.abs(latLng.lng - station.longitude) < 0.0001;
-    });
-    if (marker) {
-      marker.openPopup();
-    }
-  }, 150);
 }
 
 // ---------- Мобильная строка сортировки ----------
