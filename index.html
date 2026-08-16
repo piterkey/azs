@@ -1378,12 +1378,9 @@ function renderMap(rows) {
   
   rows.forEach(s => {
     const isSelected = (state.selectedStationId === s.station_id);
-    
-    // Базовый маркер
     const icon = stationIcon(s.fuel_status);
     const marker = L.marker([s.latitude, s.longitude], { icon });
     
-    // Если станция выбрана — меняем цвет на синий
     if (isSelected) {
       const blueIcon = L.divIcon({
         className: '',
@@ -1402,9 +1399,19 @@ function renderMap(rows) {
       <div class="popup-line">${s.distance_km.toFixed(2)} км · обновлено ${fmtDate(s.fuel_updated_at)}</div>
     `);
     
+    // Обработчик закрытия попапа
+    marker.on('popupclose', () => {
+      if (state.selectedStationId === s.station_id) {
+        clearSelection();
+      }
+    });
+    
     marker.on('click', () => {
+      if (state.selectedStationId === s.station_id) {
+        clearSelection();
+        return;
+      }
       highlightRow(s.station_id);
-      // Центрируем без изменения масштаба
       map.panTo([s.latitude, s.longitude]);
       marker.openPopup();
     });
@@ -1413,7 +1420,6 @@ function renderMap(rows) {
     markers.push(marker);
   });
   
-  // Если есть выбранная станция — центрируем без изменения масштаба
   if (selectedMarker) {
     const latLng = selectedMarker.getLatLng();
     map.panTo(latLng);
