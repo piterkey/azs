@@ -2,8 +2,8 @@ name: Update stations data
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *'  # Каждые 6 часов
+  workflow_dispatch:        # Ручной запуск
 
 jobs:
   update:
@@ -16,13 +16,18 @@ jobs:
 
       - name: Download stations data
         run: |
-          echo "Начинаем загрузку данных с API Альфа-Банка..."
-          if curl -k -f -o stations.json \
-             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+          echo "Начинаем загрузку данных с API Альфа-Банка через прокси..."
+          
+          # Используем публичный прокси-сервер для обхода блокировки
+          PROXY_URL="https://thingproxy.freeboard.io/fetch/https://alfabank.ru/api/v1/azs-stations/public/stations"
+          
+          if curl -f -o stations.json \
              --connect-timeout 30 \
              --max-time 60 \
-             "https://alfabank.ru/api/v1/azs-stations/public/stations"; then
-            echo "✅ Данные успешно загружены"
+             "$PROXY_URL"; then
+            echo "✅ Данные успешно загружены через прокси"
+            
+            # Проверяем, что файл содержит валидный JSON
             if head -c 1 stations.json | grep -q '['; then
               echo "✅ JSON валидный"
             else
@@ -30,7 +35,7 @@ jobs:
               exit 1
             fi
           else
-            echo "❌ Ошибка загрузки данных"
+            echo "❌ Ошибка загрузки данных через прокси"
             exit 1
           fi
 
