@@ -18,7 +18,7 @@ jobs:
         run: |
           echo "Начинаем загрузку данных с API Альфа-Банка через wget..."
           wget --no-check-certificate \
-               -O stations.json \
+               -O stations_raw.json \
                --header="User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
                --header="Accept: application/json, text/plain, */*" \
                --header="Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7" \
@@ -27,17 +27,29 @@ jobs:
                --timeout=60 \
                "https://alfabank.ru/api/v1/azs-stations/public/stations"
           
-          if [ -f stations.json ] && [ -s stations.json ]; then
-            echo "✅ Данные успешно загружены (размер: $(wc -c < stations.json) байт)"
+          if [ -f stations_raw.json ] && [ -s stations_raw.json ]; then
+            echo "✅ Данные успешно загружены (размер: $(wc -c < stations_raw.json) байт)"
             
             # Проверяем валидность JSON с помощью jq
-            if jq -e '.' stations.json > /dev/null 2>&1; then
+            if jq -e '.' stations_raw.json > /dev/null 2>&1; then
               echo "✅ JSON валидный"
-              echo "Количество станций: $(jq '. | length' stations.json)"
+              STATIONS_COUNT=$(jq '. | length' stations_raw.json)
+              echo "Количество станций: $STATIONS_COUNT"
+              
+              # Добавляем метаданные и сохраняем в финальный файл
+              jq --arg timestamp "$(date -Iseconds)" \
+                 --arg count "$STATIONS_COUNT" \
+                 '{ 
+                   updated_at: $timestamp, 
+                   stations_count: ($count | tonumber), 
+                   data: . 
+                 }' stations_raw.json > stations.json
+              
+              echo "✅ Метаданные добавлены: обновлено $(date)"
             else
               echo "❌ Файл не содержит валидный JSON"
               echo "Первые 200 символов файла:"
-              head -c 200 stations.json
+              head -c 200 stations_raw.json
               exit 1
             fi
           else
@@ -62,6 +74,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add stations.json
-          git commit -m "Автоматическое обновление данных АЗС"
+          git commit -m "Автоматическое обновление данных АЗС [skip ci]"
           git push
           echo "✅ Изменения отправлены в репозиторий"
