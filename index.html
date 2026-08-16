@@ -490,6 +490,24 @@
     .controls-toggle { flex-wrap: wrap; }
     .apply-filters-row { flex-direction: column; align-items: stretch; }
   }
+    /* Стили для футера и ссылок */
+  footer a {
+    transition: all 0.2s ease;
+  }
+  footer a:hover {
+    color: var(--accent) !important;
+    border-bottom-color: var(--accent) !important;
+  }
+  @media (max-width: 640px) {
+    footer {
+      font-size: 10px;
+      line-height: 1.8;
+    }
+    footer span {
+      display: block;
+      margin-top: 6px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -603,7 +621,17 @@
   </table>
   <div class="empty" id="emptyState" style="display:none;">Нет АЗС, подходящих под выбранные фильтры</div>
 
-  <footer>Сгенерировано из выгрузки alfabank.ru/azs · 0 станций в базе · тайлы © OpenStreetMap</footer>
+  <footer>
+  Сгенерировано из выгрузки alfabank.ru/azs · 0 станций в базе · тайлы © OpenStreetMap<br>
+  <span style="font-size:10px; opacity:0.6;">
+    📥 <a href="https://raw.githubusercontent.com/piterkey/azs/main/index.html" 
+         style="color:var(--accent); text-decoration:none; border-bottom:1px dotted var(--accent-dim);"
+         download="index.html">Скачать актуальную версию index.html</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/piterkey/azs" 
+       style="color:var(--muted); text-decoration:none; border-bottom:1px dotted var(--line);">GitHub</a>
+  </span>
+ </footer>
 </div>
 
 <script>
