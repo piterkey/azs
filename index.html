@@ -751,50 +751,38 @@ async function fetchFromUrl(url) {
   btn.disabled = true; btn.classList.add("loading");
   setStatus("подключение к " + url + "…");
   showProgress(null);
+  
   try {
-    const resp = await fetch(url, { cache: "no-store" });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-
-    const totalHeader = resp.headers.get("Content-Length");
-    const total = totalHeader ? parseInt(totalHeader, 10) : 0;
-
-    if (!resp.body || !window.ReadableStream) {
-      setStatus("загрузка данных…");
-      const raw = await resp.json();
-      applyNewRawData(raw, "с сайта (" + url + ")");
-      return;
-    }
-
-    const reader = resp.body.getReader();
-    const chunks = [];
-    let received = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      if (total > 0) {
-        showProgress(received / total * 100);
-        setStatus(`загрузка данных: ${fmtBytes(received)} из ${fmtBytes(total)}…`);
-      } else {
-        showProgress(null);
-        setStatus(`загрузка данных: ${fmtBytes(received)}…`);
+    let resp;
+    // Пробуем загрузить локальный файл stations.json из репозитория
+    setStatus("проверка наличия локального файла stations.json…");
+    try {
+      const localResp = await fetch('stations.json', { cache: "no-store" });
+      if (localResp.ok) {
+        const raw = await localResp.json();
+        applyNewRawData(raw, "из локального файла stations.json");
+        btn.disabled = false; btn.classList.remove("loading");
+        hideProgress();
+        return;
       }
+    } catch (e) {
+      // Локальный файл не найден, продолжаем с API
+      console.log("Локальный файл не найден, пробуем API");
     }
 
-    setStatus(`разбираю ответ (${fmtBytes(received)})…`);
-    showProgress(100);
-    const fullBytes = new Uint8Array(received);
-    let offset = 0;
-    for (const chunk of chunks) { fullBytes.set(chunk, offset); offset += chunk.length; }
-    const text = new TextDecoder("utf-8").decode(fullBytes);
-    const raw = JSON.parse(text);
-
+    // Если локального файла нет, пробуем через прокси для обхода CORS
+    setStatus("загрузка с API через прокси…");
+    const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+    resp = await fetch(proxyUrl, { cache: "no-store" });
+    
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const raw = await resp.json();
     applyNewRawData(raw, "с сайта (" + url + ")");
+    
   } catch (err) {
     hideProgress();
-    setStatus("Не удалось загрузить данные: " + err.message, "err");
-    throw err;
+    setStatus("Не удалось загрузить данные. Используйте кнопку 'Загрузить JSON' для ручной загрузки файла.", "err");
+    console.error("Ошибка загрузки:", err);
   } finally {
     btn.disabled = false; btn.classList.remove("loading");
   }
@@ -1409,8 +1397,9 @@ updateCountInRadius();
 applyFilters();
 updateFilterBadge();
 
+// Загрузка данных: сначала пробуем локальный файл, затем API
 if (DATA.length === 0) {
-  fetchFromUrl(API_URL).catch(() => {});
+  fetchFromUrl(API_URL); // Функция сама проверит локальный файл первой
 }
 </script>
 
