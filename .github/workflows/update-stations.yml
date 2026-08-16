@@ -3,7 +3,7 @@ name: Update stations data
 on:
   schedule:
     - cron: '0 */6 * * *'  # Каждые 6 часов
-  workflow_dispatch:        # Возможность запуска вручную
+  workflow_dispatch:        # Ручной запуск
 
 jobs:
   update:
@@ -13,10 +13,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Явно указываем использовать Node.js 20 (пока поддерживается)
+          # После 16 июня 2026 года можно будет убрать эту строку
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download stations data
         run: |
-          curl -o stations.json https://alfabank.ru/api/v1/azs-stations/public/stations
+          # Добавляем повторные попытки и таймаут
+          for i in {1..3}; do
+            echo "Попытка $i скачать данные..."
+            if curl -f -o stations.json --connect-timeout 30 --max-time 60 "https://alfabank.ru/api/v1/azs-stations/public/stations"; then
+              echo "Скачивание успешно"
+              break
+            else
+              echo "Ошибка скачивания, повтор через 5 секунд..."
+              sleep 5
+            fi
+          done
 
       - name: Check if file changed
         id: check
