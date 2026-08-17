@@ -5,6 +5,7 @@ Gasoline availability on stations
 Интерактивная веб-карта автозаправочных станций (АЗС) с отображением наличия топлива, цен и фильтрацией по различным параметрам.
 
 ## 🚀 Демо
+
 Страница доступна по адресу:  
 [https://piterkey.github.io/azs/](https://piterkey.github.io/azs/)
 
@@ -19,7 +20,7 @@ Gasoline availability on stations
   - По бренду АЗС
   - По статусу наличия топлива (Есть, Нет, Вероятно нет, и т.д.)
 - **Сортировка** — по расстоянию, адресу, цене, дате обновления
-- **Актуальные данные** — загрузка данных напрямую с API Альфа-Банка (для локально скаченной страницы)
+- **Актуальные данные** — загрузка данных напрямую с API Альфа-Банка
 - **Гибкая настройка источника данных** — возможность указать любой URL с JSON-данными
 - **Адаптивный дизайн** — корректное отображение на мобильных устройствах
 - **Тёмная тема** — комфортный просмотр в любых условиях
@@ -28,8 +29,10 @@ Gasoline availability on stations
 
 ### Локальный запуск
 
-1. Скачайте файл `index.html`
-2. Откройте его в любом современном браузере (Chrome, Firefox, Safari, Edge)
+1. Скачайте файл `index.html` одним из способов:
+   - Нажмите на ссылку «Скачать актуальную версию index.html» внизу страницы
+   - Используйте кнопку «Сохранить как» в браузере (Ctrl+S / Cmd+S)
+2. Откройте скачанный файл в любом современном браузере (Chrome, Firefox, Safari, Edge)
 3. Страница автоматически загрузит данные с API Альфа-Банка
 
 ## 📥 Скачать актуальную версию
@@ -40,7 +43,7 @@ Gasoline availability on stations
 Или используйте прямую ссылку на файл в репозитории:  
 [https://github.com/piterkey/azs/blob/main/index.html](https://github.com/piterkey/azs/blob/main/index.html)
 
-> **Для локального использования:** скачайте файл и откройте его в браузере. При наличии файла `stations.json` в той же папке, страница загрузит данные из него. (ℹ️ Размер `stations.json` > 20MB)
+> **Для локального использования:** скачайте файл и откройте его в браузере. При наличии файла `stations.json` в той же папке, страница загрузит данные из него. (ℹ️ Размер `stations.json` > 20 МБ)
 
 ## 🔧 Использование
 
@@ -56,9 +59,9 @@ Gasoline availability on stations
 
 ### Управление картой
 
-- **Клик** по карте — установка новой точки отсчёта
-- **Клик** по маркеру АЗС — просмотр информации о станции
-- **Клик** по строке в таблице — подсветка АЗС на карте
+- **Клик** по карте — установка новой точки отсчёта (в режиме «Указать центральную точку на карте»)
+- **Клик** по маркеру АЗС — просмотр информации о станции и выделение в таблице
+- **Клик** по строке в таблице — подсветка АЗС на карте и открытие попапа
 
 ### Загрузка данных
 
@@ -110,3 +113,26 @@ Gasoline availability on stations
 - **Безопасность** — не требует открытия исходного кода производных работ
 - **Популярность** — самая распространённая лицензия для веб-проектов
 - **Совместимость** — позволяет использовать код в любых проектах
+
+### Текст лицензии MIT
+MIT License
+
+Copyright (c) 2026 piterkey
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
