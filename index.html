@@ -551,7 +551,7 @@
   <header>
     <p class="eyebrow">Карта АЗС · Альфа-Банк</p>
     <h1>АЗС рядом с точкой</h1>
-    <p class="sub">центр <b id="centerLabel">55.864492, 37.610435</b> · страница собрана: <span id="pageBuiltLabel">16.08.2026 09:49 UTC</span></p>
+    <p class="sub">центр <b id="centerLabel">55.864492, 37.610435</b> · страница собрана: <span id="pageBuiltLabel">16.08.2026 09:49 UTC</span> · данные загружены: <b id="dataLoadedLabel">ещё не загружены</b></p>
   </header>
 
   <div class="refresh-bar">
@@ -639,6 +639,12 @@
   </div>
 
   <div id="mapBlock">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
+      <button class="btn" id="toggleCenterBtn" style="border-color:var(--line); color:var(--muted);">
+        <span id="centerBtnIcon">📍</span> Указать центральную точку на карте
+      </button>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);" id="centerModeHint">режим выключен</span>
+    </div>
     <div id="map"></div>
     <p class="map-hint">Кликните по карте, чтобы задать новую точку отсчёта</p>
   </div>
@@ -697,6 +703,8 @@ let state = {
   sorters: [],
   selectedStationId: null,
 };
+
+let centerModeActive = false;
 
 // ---------- Гео / формат ----------
 function haversineKm(lon1, lat1, lon2, lat2) {
@@ -817,6 +825,7 @@ function applyNewRawData(rawStations, sourceLabel) {
   applyFilters();
   hideProgress();
   
+  const now = new Date().toLocaleString("ru-RU");
   let statusMessage = `обновлено: ${sourceLabel}`;
   if (updateTime) {
     const formattedTime = updateTime.toLocaleString("ru-RU");
@@ -824,6 +833,10 @@ function applyNewRawData(rawStations, sourceLabel) {
   }
   statusMessage += ` · станций: ${DATA.length}`;
   setStatus(statusMessage, "ok");
+  
+  // Обновляем заголовок с информацией о загрузке
+  document.getElementById("dataLoadedLabel").textContent = now + " (" + sourceLabel + ")";
+  
   updateFilterBadge();
 }
 
@@ -995,6 +1008,14 @@ function updateMaxDistBound(resetToInitial) {
 
 function setCenter(lat, lon, opts) {
   opts = opts || {};
+  
+  // Если центр устанавливается программно — выключаем режим
+  if (centerModeActive) {
+    centerModeActive = false;
+    updateCenterButtonState();
+    map.getContainer().style.cursor = 'grab';
+  }
+  
   state.centerLat = lat;
   state.centerLon = lon;
   document.getElementById("coordInput").value = lat.toFixed(6) + ", " + lon.toFixed(6);
@@ -1409,6 +1430,33 @@ function sortRows(rows) {
   });
 }
 
+// ---------- Центральная точка ----------
+function updateCenterButtonState() {
+  const btn = document.getElementById('toggleCenterBtn');
+  const hint = document.getElementById('centerModeHint');
+  const icon = document.getElementById('centerBtnIcon');
+  
+  if (centerModeActive) {
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    icon.textContent = '🔴';
+    hint.textContent = 'кликните по карте для установки центра';
+    hint.style.color = 'var(--accent)';
+  } else {
+    btn.style.borderColor = 'var(--line)';
+    btn.style.color = 'var(--muted)';
+    icon.textContent = '📍';
+    hint.textContent = 'режим выключен';
+    hint.style.color = 'var(--muted)';
+  }
+}
+
+document.getElementById('toggleCenterBtn').addEventListener('click', function() {
+  centerModeActive = !centerModeActive;
+  updateCenterButtonState();
+  map.getContainer().style.cursor = centerModeActive ? 'crosshair' : 'grab';
+});
+
 // ---------- Карта ----------
 const map = L.map('map', { zoomControl: true }).setView([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1425,7 +1473,22 @@ const heartIcon = L.divIcon({
 const centerMarker = L.marker([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON], { icon: heartIcon, zIndexOffset: 1000 })
   .addTo(map).bindPopup("<b>❤️ Точка отсчёта</b>");
 
-map.on('click', (e) => setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true }));
+map.on('click', function(e) {
+  // Если режим установки центра активен — устанавливаем центр
+  if (centerModeActive) {
+    setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true });
+    centerModeActive = false;
+    updateCenterButtonState();
+    map.getContainer().style.cursor = 'grab';
+    return;
+  }
+  
+  // Если есть открытый попап или выделение — снимаем его
+  if (isPopupOpen || state.selectedStationId !== null) {
+    clearSelection();
+  }
+  // Иначе ничего не делаем (клик по карте без режима центра не меняет центр)
+});
 
 const STATUS_COLOR = {
   available: "#4fbf83",
@@ -1448,6 +1511,7 @@ function stationIcon(status) {
 
 let markers = [];
 let selectedMarker = null;
+let isPopupOpen = false;
 
 // Флаг для предотвращения срабатывания clearSelection при программном удалении маркеров
 window.isProgrammaticClose = false;
@@ -1502,12 +1566,15 @@ function renderMap(rows, keepSelectionId) {
     
     const stationData = s;
     
-    marker.on('popupclose', () => {
-      // Если закрытие вызвано программно (перерисовка), игнорируем
-      if (window.isProgrammaticClose) return;
-      if (state.selectedStationId === stationData.station_id) {
-        clearSelection();
-      }
+    // Обработчик открытия попапа
+    marker.on('popupopen', function() {
+      isPopupOpen = true;
+    });
+    
+    // Обработчик закрытия попапа — просто обновляем флаг
+    marker.on('popupclose', function() {
+      isPopupOpen = false;
+      // НЕ вызываем clearSelection() здесь, чтобы не было мигания
     });
     
     marker.on('click', function(e) {
@@ -1562,20 +1629,24 @@ function highlightRow(stationId) {
     return;
   }
   
-  // Устанавливаем выделение
+  // Если есть другое выделение — сбрасываем его без перерисовки
+  if (state.selectedStationId !== null) {
+    state.selectedStationId = null;
+    document.querySelectorAll('#tableBody tr').forEach(tr => {
+      tr.classList.remove('highlighted');
+    });
+  }
+  
+  // Устанавливаем новое выделение
   state.selectedStationId = stationId;
   
-  // Находим станцию в данных
   const station = DATA.find(s => s.station_id === stationId);
   if (!station) {
     console.warn('Станция не найдена в DATA:', stationId);
     return;
   }
   
-  // Перерисовываем таблицу и карту с выделением
   render(stationId);
-  
-  // Центрируем карту на станции (попап откроется автоматически в renderMap)
   map.panTo([station.latitude, station.longitude]);
 }
 
@@ -1765,6 +1836,7 @@ document.getElementById("limitHint").textContent = "0 = без ограниче�
 updateCountInRadius();
 applyFilters();
 updateFilterBadge();
+updateCenterButtonState();
 
 if (DATA.length === 0) {
   fetchFromUrl(API_URL);
