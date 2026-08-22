@@ -849,16 +849,25 @@ async function fetchFromUrl(url) {
   showProgress(null);
   
   try {
-    // 1. ПРОБУЕМ ЗАГРУЗИТЬ С API
+    // 1. ПРОБУЕМ ЗАГРУЗИТЬ С API (с таймаутом, чтобы CORS/сетевые зависания
+    // не блокировали переход к локальному stations.json)
     setStatus(`загрузка с API ${url}…`);
     try {
-      const directResp = await fetch(url, { 
-        cache: "no-store",
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-      
+      const apiController = new AbortController();
+      const apiTimeout = setTimeout(() => apiController.abort(), 6000);
+      let directResp;
+      try {
+        directResp = await fetch(url, {
+          cache: "no-store",
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: apiController.signal,
+        });
+      } finally {
+        clearTimeout(apiTimeout);
+      }
+
       if (directResp.ok) {
         const raw = await directResp.json();
         applyNewRawData(raw, "с сайта");
@@ -870,7 +879,8 @@ async function fetchFromUrl(url) {
         console.error(`Ошибка API: ${directResp.status} ${directResp.statusText}`);
       }
     } catch (e) {
-      setStatus(`Ошибка соединения с API: ${e.message}`, "err");
+      const msg = e.name === "AbortError" ? "превышено время ожидания (6 с)" : e.message;
+      setStatus(`Ошибка соединения с API: ${msg}`, "err");
       console.error("Ошибка соединения с API:", e);
     }
 
