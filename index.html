@@ -1550,7 +1550,8 @@ function setCenter(lat, lon, opts) {
   if (centerModeActive) {
     centerModeActive = false;
     updateCenterButtonState();
-    map.getContainer().style.cursor = 'grab';
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) mapContainer.style.cursor = 'grab';
   }
   
   state.centerLat = lat;
@@ -2298,7 +2299,7 @@ controlsToggle.addEventListener("click", () => {
   filtersVisible = !filtersVisible;
   controlsWrapper.classList.toggle("collapsed", !filtersVisible);
   const arrow = controlsToggle.querySelector(".arrow-icon");
-  arrow.textContent = filtersVisible ? "▼" : "▶";
+  if (arrow) arrow.textContent = filtersVisible ? "▼" : "▶";
   setTimeout(() => map.invalidateSize(), 300);
 });
 
@@ -2307,8 +2308,8 @@ document.getElementById("toggleMapBtn").addEventListener("click", () => {
   mapVisible = !mapVisible;
   const block = document.getElementById("mapBlock");
   const btn = document.getElementById("toggleMapBtn");
-  block.style.display = mapVisible ? "" : "none";
-  btn.textContent = mapVisible ? t('hideMapBtn') : t('showMapBtn');
+  if (block) block.style.display = mapVisible ? "" : "none";
+  if (btn) btn.textContent = mapVisible ? t('hideMapBtn') : t('showMapBtn');
   if (mapVisible) {
     setTimeout(() => map.invalidateSize(), 0);
   }
@@ -2400,9 +2401,9 @@ document.getElementById('langRu').addEventListener('click', function() {
   updateAllLabels();
   render(state.selectedStationId);
   updateCenterButtonState();
-  centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
-  
-  // Обновляем дату коммита при смене языка
+  if (centerMarker) {
+    centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
+  }
   updateCommitDate();
 });
 
@@ -2414,9 +2415,9 @@ document.getElementById('langEn').addEventListener('click', function() {
   updateAllLabels();
   render(state.selectedStationId);
   updateCenterButtonState();
-  centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
-  
-  // Обновляем дату коммита при смене языка
+  if (centerMarker) {
+    centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
+  }
   updateCommitDate();
 });
 
@@ -2427,14 +2428,12 @@ async function updateCommitDate() {
   const pageBuiltLabel = document.getElementById("pageBuiltLabel");
   if (!pageBuiltLabel) return;
   
-  // Показываем, что загружаем
   pageBuiltLabel.textContent = t('loadingCommit');
   
   const date = await getLastCommitDate();
   if (date) {
     pageBuiltLabel.textContent = date;
   } else {
-    // Если не удалось получить дату, показываем текущую дату как fallback
     const now = new Date();
     const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
     pageBuiltLabel.textContent = now.toLocaleString(locale, {
@@ -2451,11 +2450,18 @@ async function updateCommitDate() {
 // ============================================================
 // 16. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
-// Устанавливаем начальное значение "загрузка..."
-document.getElementById('pageBuiltLabel').textContent = t('loadingCommit');
-document.getElementById('dataLoadedLabel').textContent = t('dataLoaded');
-document.getElementById('limitHint').textContent = t('limitHint');
-document.getElementById('stepHint').textContent = t('stepHint', { step: 0.1 });
+// Устанавливаем начальные значения с проверками
+const pageBuiltLabel = document.getElementById('pageBuiltLabel');
+if (pageBuiltLabel) pageBuiltLabel.textContent = t('loadingCommit');
+
+const dataLoadedLabel = document.getElementById('dataLoadedLabel');
+if (dataLoadedLabel) dataLoadedLabel.textContent = t('dataLoaded');
+
+const limitHint = document.getElementById('limitHint');
+if (limitHint) limitHint.textContent = t('limitHint');
+
+const stepHint = document.getElementById('stepHint');
+if (stepHint) stepHint.textContent = t('stepHint', { step: 0.1 });
 
 rebuildFuelSelect();
 rebuildStatusToggles();
