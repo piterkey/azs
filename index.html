@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  /* ... ВСЕ СТИЛИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -1368,7 +1367,6 @@ function applyNewRawData(rawStations, sourceLabel) {
   const dataLoadedLabel = document.getElementById("dataLoadedLabel");
   if (dataLoadedLabel) dataLoadedLabel.textContent = now + ` (${sourceLabel})`;
   
-  // ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ДАТУ КОММИТА ПОСЛЕ ЗАГРУЗКИ
   updateCommitDate();
   
   updateStatusLine();
@@ -1385,21 +1383,36 @@ async function fetchFromUrl(url) {
   
   console.log('🔄 fetchFromUrl started, url:', url);
   console.log('📍 Current language:', currentLang);
+  console.log('📍 Current origin:', window.location.origin);
+  console.log('📍 Current protocol:', window.location.protocol);
   
   try {
+    // Определяем, где мы находимся
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const isLocalFile = window.location.protocol === 'file:';
+    const isWebServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+    
+    console.log('📁 Environment:', isGitHubPages ? 'GitHub Pages' : isLocalFile ? 'Local file' : isWebServer ? 'Web server' : 'Other');
+    
     // ====== 1. ПРОВЕРЯЕМ ЛОКАЛЬНЫЙ ФАЙЛ ======
     setStatus(t('loadStatusLocal'));
     console.log('📁 Step 1: Checking local stations.json...');
+    
     try {
-      const localResp = await fetch('stations.json', { cache: "no-store" });
+      // Для GitHub Pages используем относительный путь, для локального - тоже относительный
+      const localPath = 'stations.json';
+      console.log('📁 Fetching from:', localPath);
+      
+      const localResp = await fetch(localPath, { cache: "no-store" });
       console.log('📁 Local response status:', localResp.status);
+      
       if (localResp.ok) {
         const text = await localResp.text();
         console.log('📁 Local file size:', text.length, 'bytes');
         try {
           const raw = JSON.parse(text);
           console.log('📁 Local file parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
-          console.log('📁 Local file keys:', Array.isArray(raw) ? 'array' : Object.keys(raw));
+          
           if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
             applyNewRawData(raw, t('loadStatusLocalOk'));
             if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
@@ -1419,13 +1432,79 @@ async function fetchFromUrl(url) {
         setStatus(t('loadStatusLocalNotFound', { status: localResp.status }), "err");
       }
     } catch (e) {
-      console.warn('⚠️ Local file read error:', e.message);
-      setStatus(t('loadStatusLocalReadError', { msg: e.message }), "err");
+      // Игнорируем CORS ошибки при локальном доступе
+      if (e.message.includes('Failed to fetch') || 
+          e.message.includes('CORS') || 
+          e.message.includes('NetworkError') ||
+          (isLocalFile && e.message.includes('fetch'))) {
+        console.log('📁 Local file access blocked (CORS or file:// protocol), continuing...');
+        setStatus('Проверка локального файла: доступ ограничен, продолжаем...', "");
+      } else {
+        console.warn('⚠️ Local file read error:', e.message);
+        setStatus(t('loadStatusLocalReadError', { msg: e.message }), "err");
+      }
     }
 
-    // ====== 2. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB ======
+    // ====== 2. ПРОБУЕМ АПИ АЛЬФА-БАНКА ======
+    // Пропускаем API, если мы на GitHub Pages (там CORS всё равно не сработает)
+    if (!isGitHubPages) {
+      setStatus(t('loadStatusFromApi', { url: url }));
+      console.log('🌐 Step 2: Trying API...', url);
+      try {
+        const apiController = new AbortController();
+        const apiTimeout = setTimeout(() => apiController.abort(), 8000);
+        let directResp;
+        try {
+          directResp = await fetch(url, {
+            cache: "no-store",
+            headers: { 'Accept': 'application/json' },
+            signal: apiController.signal,
+          });
+        } finally {
+          clearTimeout(apiTimeout);
+        }
+
+        console.log('🌐 API response status:', directResp?.status);
+        
+        if (directResp && directResp.ok) {
+          const text = await directResp.text();
+          console.log('🌐 API file size:', text.length, 'bytes');
+          try {
+            const raw = JSON.parse(text);
+            console.log('🌐 API parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
+            applyNewRawData(raw, t('fromSite'));
+            if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+            hideProgress();
+            console.log('✅ Loaded from API');
+            return;
+          } catch (e) {
+            console.error('❌ API parse error:', e.message);
+            setStatus(t('errJsonParse', { msg: e.message }), "err");
+          }
+        } else {
+          const statusText = directResp?.statusText || 'unknown error';
+          console.warn('⚠️ API error:', directResp?.status, statusText);
+          setStatus(t('loadStatusApiError', { status: directResp?.status || '?', text: statusText }), "err");
+          if (directResp?.status === 403) {
+            setStatus(t('errApiFetch'), "err");
+          }
+        }
+      } catch (e) {
+        const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
+        console.error('❌ API fetch error:', e);
+        setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
+        if (e.message.includes('fetch') || e.message.includes('network')) {
+          setStatus(t('errApiFetch'), "err");
+        }
+      }
+    } else {
+      console.log('🌐 Skipping API on GitHub Pages (CORS will fail)');
+      setStatus('На GitHub Pages API не доступен из-за CORS, пробуем репозиторий...', "");
+    }
+
+    // ====== 3. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB (как запасной вариант) ======
     setStatus(t('checkingRepo'));
-    console.log('🌐 Step 2: Checking GitHub repository...');
+    console.log('🌐 Step 3: Checking GitHub repository...');
     try {
       const repoUrl = 'https://raw.githubusercontent.com/piterkey/azs/main/stations.json';
       console.log('🌐 Fetching from:', repoUrl);
@@ -1460,57 +1539,6 @@ async function fetchFromUrl(url) {
     } catch (e) {
       console.error('❌ Repository fetch error:', e.message);
       setStatus(t('repoError', { msg: e.message }), "err");
-    }
-
-    // ====== 3. ПРОБУЕМ API ======
-    setStatus(t('loadStatusFromApi', { url: url }));
-    console.log('🌐 Step 3: Trying API...', url);
-    try {
-      const apiController = new AbortController();
-      const apiTimeout = setTimeout(() => apiController.abort(), 8000);
-      let directResp;
-      try {
-        directResp = await fetch(url, {
-          cache: "no-store",
-          headers: { 'Accept': 'application/json' },
-          signal: apiController.signal,
-        });
-      } finally {
-        clearTimeout(apiTimeout);
-      }
-
-      console.log('🌐 API response status:', directResp?.status);
-      
-      if (directResp && directResp.ok) {
-        const text = await directResp.text();
-        console.log('🌐 API file size:', text.length, 'bytes');
-        try {
-          const raw = JSON.parse(text);
-          console.log('🌐 API parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
-          applyNewRawData(raw, t('fromSite'));
-          if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
-          hideProgress();
-          console.log('✅ Loaded from API');
-          return;
-        } catch (e) {
-          console.error('❌ API parse error:', e.message);
-          setStatus(t('errJsonParse', { msg: e.message }), "err");
-        }
-      } else {
-        const statusText = directResp?.statusText || 'unknown error';
-        console.warn('⚠️ API error:', directResp?.status, statusText);
-        setStatus(t('loadStatusApiError', { status: directResp?.status || '?', text: statusText }), "err");
-        if (directResp?.status === 403) {
-          setStatus(t('errApiFetch'), "err");
-        }
-      }
-    } catch (e) {
-      const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
-      console.error('❌ API fetch error:', e);
-      setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
-      if (e.message.includes('fetch') || e.message.includes('network')) {
-        setStatus(t('errApiFetch'), "err");
-      }
     }
 
     // ====== ВСЕ СПОСОБЫ НЕ УДАЛИСЬ ======
@@ -2378,12 +2406,22 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput")?.click());
+document.getElementById("fileBtn").addEventListener("click", () => {
+  const fileInput = document.getElementById("fileInput");
+  if (fileInput) {
+    fileInput.click();
+  }
+});
+
 document.getElementById("fileInput").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  
+  console.log('📁 Loading file:', file.name, file.size, 'bytes');
+  
   setStatus(t('loadStatusFileRead', { name: file.name, size: fmtBytes(file.size) }));
   showProgress(0);
+  
   const reader = new FileReader();
   reader.onprogress = (ev) => {
     if (ev.lengthComputable) {
@@ -2400,14 +2438,17 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
       showProgress(100);
       const raw = JSON.parse(reader.result);
       applyNewRawData(raw, t('fromFile', { name: file.name }));
+      e.target.value = '';
     } catch (err) {
       hideProgress();
       setStatus(t('loadStatusFileError', { msg: err.message }), "err");
+      e.target.value = '';
     }
   };
   reader.onerror = () => { 
     hideProgress(); 
-    setStatus(t('loadStatusFileReadError'), "err"); 
+    setStatus(t('loadStatusFileReadError'), "err");
+    e.target.value = '';
   };
   reader.readAsText(file, "utf-8");
 });
@@ -2455,14 +2496,12 @@ async function updateCommitDate() {
   
   console.log('🔄 Обновление даты коммита...');
   
-  // Сначала пытаемся получить дату из GitHub API
   const date = await getLastCommitDate();
   
   if (date) {
     pageBuiltLabel.textContent = date;
     console.log('✅ Дата коммита установлена из GitHub:', date);
   } else {
-    // Если GitHub API не доступен, используем текущую дату
     const now = new Date();
     const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
     const fallbackDate = now.toLocaleString(locale, {
@@ -2515,10 +2554,8 @@ updateFilterBadge();
 updateCenterButtonState();
 updateStatusLine();
 
-// Загружаем дату коммита
 updateCommitDate();
 
-// Загружаем данные
 if (DATA.length === 0) {
   console.log('🚀 Initial data load');
   fetchFromUrl(API_URL);
