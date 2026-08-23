@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  /* ... ВСЕ СТИЛИ ТАКИЕ ЖЕ, КАК В ПРЕДЫДУЩЕЙ ВЕРСИИ ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -722,7 +721,7 @@
 
 <script>
 // ============================================================
-// 1. ЛОКАЛИЗАЦИЯ (ПОЛНАЯ)
+// 1. ЛОКАЛИЗАЦИЯ
 // ============================================================
 const LOCALE = {
   ru: {
@@ -1224,14 +1223,14 @@ function updateAllLabels() {
 }
 
 // ============================================================
-// 5. ПРИМЕНЕНИЕ ДАННЫХ
+// 5. ПРИМЕНЕНИЕ ДАННЫХ (ИСПРАВЛЕННАЯ)
 // ============================================================
 function applyNewRawData(rawStations, sourceLabel) {
-  // ВРЕМЕННАЯ ОТЛАДКА — ПОКАЗЫВАЕМ, ЧТО ПРИШЛО
+  // ВРЕМЕННАЯ ОТЛАДКА
   console.log('🔍 RAW DATA TYPE:', typeof rawStations);
   console.log('🔍 RAW DATA KEYS:', Object.keys(rawStations));
   console.log('🔍 RAW DATA SAMPLE:', rawStations[0] || rawStations.data?.[0]);
-  // КОНЕЦ ОТЛАДКИ
+  
   console.log(`📊 applyNewRawData called with ${rawStations.length} items from "${sourceLabel}"`);
   
   // Проверяем структуру данных
@@ -1265,9 +1264,14 @@ function applyNewRawData(rawStations, sourceLabel) {
     return;
   }
   
+  // ====== ИСПРАВЛЕНИЕ: ПРОВЕРКА СУЩЕСТВОВАНИЯ ЭЛЕМЕНТОВ ======
+  const totalCountEl = document.getElementById("totalCount");
+  if (totalCountEl) totalCountEl.textContent = DATA.length;
+  
+  const stationCountFooterEl = document.getElementById("stationCountFooter");
+  if (stationCountFooterEl) stationCountFooterEl.textContent = DATA.length;
+  
   rebuildBrandOptions();
-  document.getElementById("totalCount").textContent = DATA.length;
-  document.getElementById("stationCountFooter").textContent = DATA.length;
   updateMaxDistBound(true);
   applyFilters();
   hideProgress();
@@ -1281,13 +1285,15 @@ function applyNewRawData(rawStations, sourceLabel) {
   setStatus(statusMessage, "ok");
   console.log('✅ Status set:', statusMessage);
   
-  document.getElementById("dataLoadedLabel").textContent = now + ` (${sourceLabel})`;
+  const dataLoadedLabel = document.getElementById("dataLoadedLabel");
+  if (dataLoadedLabel) dataLoadedLabel.textContent = now + ` (${sourceLabel})`;
+  
   updateStatusLine();
   updateFilterBadge();
 }
 
 // ============================================================
-// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ИСПРАВЛЕННАЯ — ДОБАВЛЕНА ЗАКРЫВАЮЩАЯ СКОБКА)
+// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
 // ============================================================
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
@@ -1437,10 +1443,10 @@ async function fetchFromUrl(url) {
     if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
     console.log('🔄 fetchFromUrl finished');
   }
-} // <-- ЭТА СКОБКА БЫЛА ПРОПУЩЕНА!
+}
 
 // ============================================================
-// 7. ТОЧКА ОТСЧЁТА И РАДИУС
+// 7. ТОЧКА ОТСЧЁТА И РАДИУС (ИСПРАВЛЕННАЯ)
 // ============================================================
 function farthestDistanceKm() {
   let max = 0;
@@ -1452,21 +1458,27 @@ function farthestDistanceKm() {
 }
 
 function updateMaxDistBound(resetToInitial) {
+  const distSlider = document.getElementById("distSlider");
+  const maxDistLabel = document.getElementById("maxDistLabel");
+  const distVal = document.getElementById("distVal");
+  const distInput = document.getElementById("distInput");
+  
   if (!DATA.length) {
-    document.getElementById("distSlider").max = "0";
-    document.getElementById("maxDistLabel").textContent = "0.0";
+    if (distSlider) distSlider.max = "0";
+    if (maxDistLabel) maxDistLabel.textContent = "0.0";
+    if (distVal) distVal.textContent = "0.0";
+    if (distInput) distInput.value = "0.0";
     return;
   }
   const farMax = farthestDistanceKm();
-  const slider = document.getElementById("distSlider");
-  slider.max = farMax.toFixed(2);
-  document.getElementById("maxDistLabel").textContent = farMax.toFixed(1);
+  if (distSlider) distSlider.max = farMax.toFixed(2);
+  if (maxDistLabel) maxDistLabel.textContent = farMax.toFixed(1);
   if (resetToInitial || state.maxDist > farMax) {
     state.maxDist = Math.min(state.maxDist, farMax) || farMax;
   }
-  slider.value = state.maxDist.toFixed(2);
-  document.getElementById("distVal").textContent = state.maxDist.toFixed(1);
-  document.getElementById("distInput").value = state.maxDist.toFixed(1);
+  if (distSlider) distSlider.value = state.maxDist.toFixed(2);
+  if (distVal) distVal.textContent = state.maxDist.toFixed(1);
+  if (distInput) distInput.value = state.maxDist.toFixed(1);
 }
 
 function setCenter(lat, lon, opts) {
