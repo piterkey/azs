@@ -2015,22 +2015,37 @@ function sortRows(rows) {
       let av = a[key], bv = b[key];
       
       if (key === "fuel_price") {
-        av = parseFloat(av) || -1;
-        bv = parseFloat(bv) || -1;
+        // Для цены: null/undefined считаем как -Infinity (будут в конце при сортировке по возрастанию)
+        av = (av !== null && av !== undefined && !isNaN(parseFloat(av))) ? parseFloat(av) : -Infinity;
+        bv = (bv !== null && bv !== undefined && !isNaN(parseFloat(bv))) ? parseFloat(bv) : -Infinity;
+        if (av !== bv) return (av - bv) * dir;
+        continue;
+      } else if (key === "distance_km") {
+        // Для расстояния: всегда число
+        av = parseFloat(av) || 0;
+        bv = parseFloat(bv) || 0;
+        if (av !== bv) return (av - bv) * dir;
+        continue;
       } else if (key === "fuel_updated_at") {
+        // Для даты: null/undefined считаем как -Infinity (будут в конце при сортировке по возрастанию)
         const aTime = av ? new Date(av).getTime() : -Infinity;
         const bTime = bv ? new Date(bv).getTime() : -Infinity;
         if (aTime !== bTime) return (aTime - bTime) * dir;
         continue;
       } else if (key === "fuel_status") {
+        // Для статуса: используем порядок из STATUS_ORDER
         av = STATUS_ORDER.indexOf(av);
         bv = STATUS_ORDER.indexOf(bv);
-      } else if (typeof av === "string") {
+        if (av !== bv) return (av - bv) * dir;
+        continue;
+      } else if (typeof av === "string" && typeof bv === "string") {
+        // Для строковых полей (адрес, бренд)
         const result = av.localeCompare(bv, "ru");
         if (result !== 0) return result * dir;
         continue;
       }
       
+      // Для остальных случаев (числа)
       if (av !== bv) return (av - bv) * dir;
     }
     return 0;
