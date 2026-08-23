@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  /* ВСЕ СТИЛИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ */
+  /* ... ВСЕ СТИЛИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -1097,16 +1097,15 @@ function rebuildStatusToggles() {
   });
 }
 
+// ============================================================
+// 4. ОБНОВЛЕНИЕ СТАТУСНОЙ СТРОКИ
+// ============================================================
 function updateStatusLine() {
   const centerStr = state.centerLat.toFixed(6) + ", " + state.centerLon.toFixed(6);
   
-  // ПОЛУЧАЕМ ЗНАЧЕНИЯ БЕЗ ПЕРЕЗАПИСИ
-  const pageBuiltEl = document.getElementById("pageBuiltLabel");
-  const dataLoadedEl = document.getElementById("dataLoadedLabel");
-  
-  // Если элементы существуют, берём их текст, иначе используем значения по умолчанию
-  let builtStr = pageBuiltEl?.textContent || '16.08.2026 09:49 UTC';
-  let loadedStr = dataLoadedEl?.textContent || 'ещё не загружены';
+  // Получаем значения, НО если они пустые — используем значения по умолчанию
+  let builtStr = document.getElementById("pageBuiltLabel")?.textContent || '16.08.2026 09:49 UTC';
+  let loadedStr = document.getElementById("dataLoadedLabel")?.textContent || 'ещё не загружены';
   
   const headerSub = document.getElementById("headerSub");
   if (headerSub) {
@@ -1151,7 +1150,7 @@ function updateFilterBadge() {
 }
 
 // ============================================================
-// 4. ОБНОВЛЕНИЕ ЯЗЫКА (ИСПРАВЛЕННАЯ)
+// 5. ОБНОВЛЕНИЕ ЯЗЫКА
 // ============================================================
 function updateAllLabels() {
   // Проверяем каждый элемент перед обновлением
@@ -1268,7 +1267,7 @@ function updateAllLabels() {
 }
 
 // ============================================================
-// 5. ПРИМЕНЕНИЕ ДАННЫХ
+// 6. ПРИМЕНЕНИЕ ДАННЫХ
 // ============================================================
 function applyNewRawData(rawStations, sourceLabel) {
   // ВРЕМЕННАЯ ОТЛАДКА
@@ -1338,7 +1337,7 @@ function applyNewRawData(rawStations, sourceLabel) {
 }
 
 // ============================================================
-// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
+// 7. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
 // ============================================================
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
@@ -1491,7 +1490,7 @@ async function fetchFromUrl(url) {
 }
 
 // ============================================================
-// 7. ТОЧКА ОТСЧЁТА И РАДИУС
+// 8. ТОЧКА ОТСЧЁТА И РАДИУС (ИСПРАВЛЕННАЯ — С ПРОВЕРКАМИ)
 // ============================================================
 function farthestDistanceKm() {
   let max = 0;
@@ -1526,6 +1525,9 @@ function updateMaxDistBound(resetToInitial) {
   if (distInput) distInput.value = state.maxDist.toFixed(1);
 }
 
+// ============================================================
+// 9. УСТАНОВКА ЦЕНТРАЛЬНОЙ ТОЧКИ (ИСПРАВЛЕННАЯ — С ПРОВЕРКАМИ)
+// ============================================================
 function setCenter(lat, lon, opts) {
   opts = opts || {};
   
@@ -1537,13 +1539,27 @@ function setCenter(lat, lon, opts) {
   
   state.centerLat = lat;
   state.centerLon = lon;
-  document.getElementById("coordInput").value = lat.toFixed(6) + ", " + lon.toFixed(6);
-  document.getElementById("coordInput").classList.remove("err");
-  document.getElementById("coordHint").textContent = "";
-  document.getElementById("centerLabel").textContent = lat.toFixed(6) + ", " + lon.toFixed(6);
-  centerMarker.setLatLng([lat, lon]);
+  
+  // Обновляем координаты в поле ввода
+  const coordInput = document.getElementById("coordInput");
+  if (coordInput) {
+    coordInput.value = lat.toFixed(6) + ", " + lon.toFixed(6);
+    coordInput.classList.remove("err");
+  }
+  
+  // Очищаем подсказку
+  const coordHint = document.getElementById("coordHint");
+  if (coordHint) coordHint.textContent = "";
+  
+  // Обновляем лейбл центра
+  const centerLabel = document.getElementById("centerLabel");
+  if (centerLabel) centerLabel.textContent = lat.toFixed(6) + ", " + lon.toFixed(6);
+  
+  // Обновляем маркер на карте
+  if (centerMarker) centerMarker.setLatLng([lat, lon]);
+  
   updateMaxDistBound(!!opts.expandToFarthest);
-  if (!opts.skipPan) map.panTo([lat, lon]);
+  if (!opts.skipPan && map) map.panTo([lat, lon]);
   
   state.selectedStationId = null;
   applyFilters();
@@ -1554,7 +1570,7 @@ function setCenter(lat, lon, opts) {
 }
 
 // ============================================================
-// 8. ГЕОКОДИРОВАНИЕ
+// 10. ГЕОКОДИРОВАНИЕ
 // ============================================================
 async function geocodeAddress(address) {
   if (!address.trim()) return null;
@@ -1581,33 +1597,38 @@ async function reverseGeocode(lat, lon) {
     if (!resp.ok) return;
     const data = await resp.json();
     const displayName = data.display_name || "";
-    document.getElementById("addressInput").value = displayName;
+    const addressInput = document.getElementById("addressInput");
+    if (addressInput) addressInput.value = displayName;
   } catch {}
 }
 
 // ============================================================
-// 9. ОБРАБОТЧИКИ ИНТЕРФЕЙСА
+// 11. ОБРАБОТЧИКИ ИНТЕРФЕЙСА
 // ============================================================
 document.getElementById("applyAddressBtn").addEventListener("click", async () => {
   const input = document.getElementById("addressInput");
-  const address = input.value;
-  if (!address.trim()) return;
+  const address = input?.value;
+  if (!address?.trim()) return;
   const result = await geocodeAddress(address);
   if (result) {
     setCenter(result.lat, result.lon, { expandToFarthest: true });
   } else {
-    document.getElementById("coordHint").textContent = t('addressNotFound');
-    setTimeout(() => document.getElementById("coordHint").textContent = "", 3000);
+    const coordHint = document.getElementById("coordHint");
+    if (coordHint) {
+      coordHint.textContent = t('addressNotFound');
+      setTimeout(() => coordHint.textContent = "", 3000);
+    }
   }
 });
 
 document.getElementById("resetAddressBtn").addEventListener("click", () => {
-  document.getElementById("addressInput").value = "";
+  const input = document.getElementById("addressInput");
+  if (input) input.value = "";
 });
 
 document.getElementById("addressInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    document.getElementById("applyAddressBtn").click();
+    document.getElementById("applyAddressBtn")?.click();
   }
 });
 
@@ -1642,10 +1663,12 @@ function parseCoordText(text) {
 
 function applyCoordText() {
   const input = document.getElementById("coordInput");
+  if (!input) return;
   const parsed = parseCoordText(input.value);
   if (!parsed) {
     input.classList.add("err");
-    document.getElementById("coordHint").textContent = t('coordError');
+    const coordHint = document.getElementById("coordHint");
+    if (coordHint) coordHint.textContent = t('coordError');
     return;
   }
   setCenter(parsed.lat, parsed.lon, { expandToFarthest: true });
@@ -1677,13 +1700,15 @@ if (distInput) {
   distInput.addEventListener("input", function() {
     let val = parseFloat(this.value);
     if (isNaN(val) || val < 0) val = 0;
-    const maxVal = parseFloat(distSlider.max) || 100;
+    const maxVal = parseFloat(distSlider?.max) || 100;
     if (val > maxVal) val = maxVal;
     state.maxDist = val;
-    distSlider.value = val.toFixed(2);
-    document.getElementById("distVal").textContent = val.toFixed(1);
+    if (distSlider) distSlider.value = val.toFixed(2);
+    const distVal = document.getElementById("distVal");
+    if (distVal) distVal.textContent = val.toFixed(1);
     const step = getProgressiveStep(val);
-    document.getElementById('stepHint').textContent = t('stepHint', { step: step });
+    const stepHint = document.getElementById('stepHint');
+    if (stepHint) stepHint.textContent = t('stepHint', { step: step });
     this.step = step;
     updateCountInRadius();
     updateFilterBadge();
@@ -1694,11 +1719,13 @@ if (distSlider) {
   distSlider.addEventListener("input", function() {
     let val = parseFloat(this.value);
     state.maxDist = val;
-    document.getElementById("distVal").textContent = val.toFixed(1);
-    distInput.value = val.toFixed(1);
+    const distVal = document.getElementById("distVal");
+    if (distVal) distVal.textContent = val.toFixed(1);
+    if (distInput) distInput.value = val.toFixed(1);
     const step = getProgressiveStep(val);
-    document.getElementById('stepHint').textContent = t('stepHint', { step: step });
-    distInput.step = step;
+    const stepHint = document.getElementById('stepHint');
+    if (stepHint) stepHint.textContent = t('stepHint', { step: step });
+    if (distInput) distInput.step = step;
     updateCountInRadius();
     updateFilterBadge();
   });
@@ -1775,22 +1802,25 @@ function applyFilters() {
 function resetAllFilters() {
   setCenter(ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON, { expandToFarthest: true, skipPan: true });
   
-  const maxVal = parseFloat(distSlider.max) || 100;
+  const maxVal = parseFloat(distSlider?.max) || 100;
   state.maxDist = Math.min(5.0, maxVal);
-  distSlider.value = state.maxDist.toFixed(2);
-  distInput.value = state.maxDist.toFixed(1);
-  document.getElementById("distVal").textContent = state.maxDist.toFixed(1);
+  if (distSlider) distSlider.value = state.maxDist.toFixed(2);
+  if (distInput) distInput.value = state.maxDist.toFixed(1);
+  const distVal = document.getElementById("distVal");
+  if (distVal) distVal.textContent = state.maxDist.toFixed(1);
   
   state.limit = 0;
-  limitInput.value = 0;
-  document.getElementById("limitCountLabel").textContent = "все";
-  document.getElementById("limitHint").textContent = t('limitHint');
+  if (limitInput) limitInput.value = 0;
+  const limitCountLabel = document.getElementById("limitCountLabel");
+  if (limitCountLabel) limitCountLabel.textContent = "все";
+  const limitHint = document.getElementById("limitHint");
+  if (limitHint) limitHint.textContent = t('limitHint');
   
   state.brand = "";
-  document.getElementById("brandFilter").value = "";
+  if (brandFilter) brandFilter.value = "";
   
   state.fuel = DEFAULT_FUEL;
-  document.getElementById("fuelSelect").value = DEFAULT_FUEL;
+  if (fuelSelect) fuelSelect.value = DEFAULT_FUEL;
   
   state.activeStatuses = new Set(["available"]);
   document.querySelectorAll("#statusToggles .chip").forEach(chip => {
@@ -1802,12 +1832,17 @@ function resetAllFilters() {
     }
   });
   
-  document.getElementById("addressInput").value = "";
+  const addressInput = document.getElementById("addressInput");
+  if (addressInput) addressInput.value = "";
   
-  document.getElementById("coordInput").value = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
-  document.getElementById("centerLabel").textContent = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
-  centerMarker.setLatLng([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
-  map.panTo([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
+  const coordInput = document.getElementById("coordInput");
+  if (coordInput) coordInput.value = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
+  
+  const centerLabel = document.getElementById("centerLabel");
+  if (centerLabel) centerLabel.textContent = ORIGINAL_CENTER_LAT.toFixed(6) + ", " + ORIGINAL_CENTER_LON.toFixed(6);
+  
+  if (centerMarker) centerMarker.setLatLng([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
+  if (map) map.panTo([ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON]);
   
   state.selectedStationId = null;
   updateCountInRadius();
@@ -1824,13 +1859,14 @@ function expandRadiusToIncludeStation(stationId) {
   if (distKm <= state.maxDist) return false;
   
   const newRadius = Math.ceil(distKm * 1.1 * 10) / 10;
-  const maxVal = parseFloat(distSlider.max) || 100;
+  const maxVal = parseFloat(distSlider?.max) || 100;
   const finalRadius = Math.min(newRadius, maxVal);
   
   state.maxDist = finalRadius;
-  distSlider.value = finalRadius.toFixed(2);
-  distInput.value = finalRadius.toFixed(1);
-  document.getElementById("distVal").textContent = finalRadius.toFixed(1);
+  if (distSlider) distSlider.value = finalRadius.toFixed(2);
+  if (distInput) distInput.value = finalRadius.toFixed(1);
+  const distVal = document.getElementById("distVal");
+  if (distVal) distVal.textContent = finalRadius.toFixed(1);
   
   updateCountInRadius();
   updateFilterBadge();
@@ -1839,7 +1875,7 @@ function expandRadiusToIncludeStation(stationId) {
 }
 
 // ============================================================
-// 10. ТАБЛИЦА И КАРТА
+// 12. ТАБЛИЦА И КАРТА
 // ============================================================
 function currentRows() {
   const rows = [];
@@ -1908,24 +1944,29 @@ function updateCenterButtonState() {
   const icon = document.getElementById('centerBtnIcon');
   
   if (centerModeActive) {
-    btn.style.borderColor = 'var(--accent)';
-    btn.style.color = 'var(--accent)';
-    icon.textContent = '🔴';
-    hint.textContent = t('centerModeOn');
-    hint.style.color = 'var(--accent)';
+    if (btn) btn.style.borderColor = 'var(--accent)';
+    if (btn) btn.style.color = 'var(--accent)';
+    if (icon) icon.textContent = '🔴';
+    if (hint) {
+      hint.textContent = t('centerModeOn');
+      hint.style.color = 'var(--accent)';
+    }
   } else {
-    btn.style.borderColor = 'var(--line)';
-    btn.style.color = 'var(--muted)';
-    icon.textContent = '📍';
-    hint.textContent = t('centerModeOff');
-    hint.style.color = 'var(--muted)';
+    if (btn) btn.style.borderColor = 'var(--line)';
+    if (btn) btn.style.color = 'var(--muted)';
+    if (icon) icon.textContent = '📍';
+    if (hint) {
+      hint.textContent = t('centerModeOff');
+      hint.style.color = 'var(--muted)';
+    }
   }
 }
 
 document.getElementById('toggleCenterBtn').addEventListener('click', function() {
   centerModeActive = !centerModeActive;
   updateCenterButtonState();
-  map.getContainer().style.cursor = centerModeActive ? 'crosshair' : 'grab';
+  const mapContainer = document.getElementById('map');
+  if (mapContainer) mapContainer.style.cursor = centerModeActive ? 'crosshair' : 'grab';
 });
 
 // ---------- Карта ----------
@@ -1949,7 +1990,8 @@ map.on('click', function(e) {
     setCenter(e.latlng.lat, e.latlng.lng, { expandToFarthest: true, skipPan: true });
     centerModeActive = false;
     updateCenterButtonState();
-    map.getContainer().style.cursor = 'grab';
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) mapContainer.style.cursor = 'grab';
     return;
   }
   
@@ -2265,14 +2307,14 @@ document.getElementById("resetFiltersBtn").addEventListener("click", resetAllFil
 
 document.getElementById("applyUrlBtn").addEventListener("click", async () => {
   const input = document.getElementById("apiUrlInput");
-  let url = input.value.trim();
+  let url = input?.value?.trim();
   if (!url) {
     setStatus(t('errEnterUrl'), "err");
     return;
   }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     url = "https://" + url;
-    input.value = url;
+    if (input) input.value = url;
   }
   API_URL = url;
   try {
@@ -2281,13 +2323,14 @@ document.getElementById("applyUrlBtn").addEventListener("click", async () => {
 });
 
 document.getElementById("resetUrlBtn").addEventListener("click", () => {
-  document.getElementById("apiUrlInput").value = ORIGINAL_API_URL;
+  const input = document.getElementById("apiUrlInput");
+  if (input) input.value = ORIGINAL_API_URL;
   API_URL = ORIGINAL_API_URL;
 });
 
 document.getElementById("apiUrlInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    document.getElementById("applyUrlBtn").click();
+    document.getElementById("applyUrlBtn")?.click();
   }
 });
 
@@ -2300,7 +2343,7 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput")?.click());
 document.getElementById("fileInput").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -2335,7 +2378,7 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
 });
 
 // ============================================================
-// 11. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
+// 13. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
 // ============================================================
 document.getElementById('langRu').addEventListener('click', function() {
   if (currentLang === 'ru') return;
@@ -2360,7 +2403,7 @@ document.getElementById('langEn').addEventListener('click', function() {
 });
 
 // ============================================================
-// 12. ИНИЦИАЛИЗАЦИЯ
+// 14. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 document.getElementById('pageBuiltLabel').textContent = '16.08.2026 09:49 UTC';
 document.getElementById('dataLoadedLabel').textContent = t('dataLoaded');
