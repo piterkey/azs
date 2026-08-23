@@ -1100,9 +1100,13 @@ function rebuildStatusToggles() {
 function updateStatusLine() {
   const centerStr = state.centerLat.toFixed(6) + ", " + state.centerLon.toFixed(6);
   
-  // Получаем значения, НО если они пустые — используем значения по умолчанию
-  let builtStr = document.getElementById("pageBuiltLabel")?.textContent || '16.08.2026 09:49 UTC';
-  let loadedStr = document.getElementById("dataLoadedLabel")?.textContent || t('dataLoaded');
+  // ПОЛУЧАЕМ ЗНАЧЕНИЯ БЕЗ ПЕРЕЗАПИСИ
+  const pageBuiltEl = document.getElementById("pageBuiltLabel");
+  const dataLoadedEl = document.getElementById("dataLoadedLabel");
+  
+  // Если элементы существуют, берём их текст, иначе используем значения по умолчанию
+  let builtStr = pageBuiltEl?.textContent || '16.08.2026 09:49 UTC';
+  let loadedStr = dataLoadedEl?.textContent || 'ещё не загружены';
   
   const headerSub = document.getElementById("headerSub");
   if (headerSub) {
