@@ -1227,6 +1227,11 @@ function updateAllLabels() {
 // 5. ПРИМЕНЕНИЕ ДАННЫХ
 // ============================================================
 function applyNewRawData(rawStations, sourceLabel) {
+  // ВРЕМЕННАЯ ОТЛАДКА — ПОКАЗЫВАЕМ, ЧТО ПРИШЛО
+  console.log('🔍 RAW DATA TYPE:', typeof rawStations);
+  console.log('🔍 RAW DATA KEYS:', Object.keys(rawStations));
+  console.log('🔍 RAW DATA SAMPLE:', rawStations[0] || rawStations.data?.[0]);
+  // КОНЕЦ ОТЛАДКИ
   console.log(`📊 applyNewRawData called with ${rawStations.length} items from "${sourceLabel}"`);
   
   // Проверяем структуру данных
