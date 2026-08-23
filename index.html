@@ -933,7 +933,7 @@ async function getLastCommitDate() {
     
     if (response.ok) {
       const data = await response.json();
-      console.log('📅 Данные получены:', data);
+      console.log('📅 Данные получены, коммитов:', data.length);
       if (data.length > 0) {
         const date = new Date(data[0].commit.committer.date);
         const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
@@ -954,40 +954,6 @@ async function getLastCommitDate() {
     console.warn('⚠️ Не удалось получить дату коммита:', e.message);
   }
   return null;
-}
-
-// ============================================================
-// 15. ОБНОВЛЕНИЕ ДАТЫ КОММИТА
-// ============================================================
-async function updateCommitDate() {
-  const pageBuiltLabel = document.getElementById('pageBuiltLabel');
-  if (!pageBuiltLabel) {
-    console.warn('⚠️ Элемент pageBuiltLabel не найден');
-    return;
-  }
-  
-  console.log('🔄 Обновление даты коммита...');
-  pageBuiltLabel.textContent = t('loadingCommit');
-  
-  const date = await getLastCommitDate();
-  if (date) {
-    pageBuiltLabel.textContent = date;
-    console.log('✅ Дата коммита установлена:', date);
-  } else {
-    // Fallback: используем текущую дату и время
-    const now = new Date();
-    const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
-    const fallbackDate = now.toLocaleString(locale, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    pageBuiltLabel.textContent = fallbackDate + ' (fallback)';
-    console.log('⚠️ Использован fallback:', fallbackDate);
-  }
-  updateStatusLine();
 }
 
 // ============================================================
@@ -1177,11 +1143,28 @@ function updateStatusLine() {
   if (!headerSub) return;
   
   const builtEl = document.getElementById("pageBuiltLabel");
-  const builtText = builtEl?.textContent || t('loadingCommit');
+  let builtText = builtEl?.textContent || t('loadingCommit');
+  
+  // Если текст всё ещё "загрузка..." или пустой, используем текущую дату
+  if (builtText === t('loadingCommit') || builtText === 'loading...' || !builtText || builtText.trim() === '') {
+    const now = new Date();
+    const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+    builtText = now.toLocaleString(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    if (builtEl) builtEl.textContent = builtText;
+  }
   
   headerSub.innerHTML = t('headerSub', { built: builtText });
 }
 
+// ============================================================
+// 6. ОБНОВЛЕНИЕ БЕЙДЖА ФИЛЬТРОВ
+// ============================================================
 function updateFilterBadge() {
   const badge = document.getElementById("filterBadge");
   if (!badge) return;
@@ -1215,10 +1198,9 @@ function updateFilterBadge() {
 }
 
 // ============================================================
-// 6. ОБНОВЛЕНИЕ ЯЗЫКА
+// 7. ОБНОВЛЕНИЕ ЯЗЫКА
 // ============================================================
 function updateAllLabels() {
-  // Проверяем каждый элемент перед обновлением
   const pageTitle = document.getElementById('pageTitle');
   if (pageTitle) {
     document.title = t('pageTitle');
@@ -1231,7 +1213,6 @@ function updateAllLabels() {
   const headerTitle = document.getElementById('headerTitle');
   if (headerTitle) headerTitle.textContent = t('headerTitle');
   
-  // Обновляем все элементы с data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (key) {
@@ -1245,7 +1226,6 @@ function updateAllLabels() {
   const addressLabel = document.getElementById('addressLabel');
   if (addressLabel) addressLabel.textContent = t('addressLabel');
   
-  // Не пересоздаём coordHint, а обновляем только текст
   const coordsLabel = document.getElementById('coordsLabel');
   if (coordsLabel) {
     const existingHint = document.getElementById('coordHint');
@@ -1280,7 +1260,6 @@ function updateAllLabels() {
   const nearestLabel = document.getElementById('nearestLabel');
   if (nearestLabel) nearestLabel.textContent = t('nearestLabel');
   
-  // Заголовки таблицы
   const thDistance = document.getElementById('thDistance');
   if (thDistance) thDistance.innerHTML = t('thDistance') + '<span class="arrow"></span>';
   
@@ -1320,7 +1299,6 @@ function updateAllLabels() {
   const centerBtnLabel = document.getElementById('centerBtnLabel');
   if (centerBtnLabel) centerBtnLabel.textContent = t('centerBtnLabel');
   
-  // Перестраиваем выпадающие списки
   rebuildFuelSelect();
   rebuildStatusToggles();
   updateFilterBadge();
@@ -1328,7 +1306,7 @@ function updateAllLabels() {
 }
 
 // ============================================================
-// 7. ПРИМЕНЕНИЕ ДАННЫХ
+// 8. ПРИМЕНЕНИЕ ДАННЫХ
 // ============================================================
 function applyNewRawData(rawStations, sourceLabel) {
   console.log('🔍 RAW DATA TYPE:', typeof rawStations);
@@ -1390,12 +1368,15 @@ function applyNewRawData(rawStations, sourceLabel) {
   const dataLoadedLabel = document.getElementById("dataLoadedLabel");
   if (dataLoadedLabel) dataLoadedLabel.textContent = now + ` (${sourceLabel})`;
   
+  // ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ДАТУ КОММИТА ПОСЛЕ ЗАГРУЗКИ
+  updateCommitDate();
+  
   updateStatusLine();
   updateFilterBadge();
 }
 
 // ============================================================
-// 8. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
+// 9. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
 // ============================================================
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
@@ -1548,7 +1529,7 @@ async function fetchFromUrl(url) {
 }
 
 // ============================================================
-// 9. ТОЧКА ОТСЧЁТА И РАДИУС
+// 10. ТОЧКА ОТСЧЁТА И РАДИУС
 // ============================================================
 function farthestDistanceKm() {
   let max = 0;
@@ -1584,7 +1565,7 @@ function updateMaxDistBound(resetToInitial) {
 }
 
 // ============================================================
-// 10. УСТАНОВКА ЦЕНТРАЛЬНОЙ ТОЧКИ
+// 11. УСТАНОВКА ЦЕНТРАЛЬНОЙ ТОЧКИ
 // ============================================================
 function setCenter(lat, lon, opts) {
   opts = opts || {};
@@ -1608,7 +1589,6 @@ function setCenter(lat, lon, opts) {
   const coordHint = document.getElementById("coordHint");
   if (coordHint) coordHint.textContent = "";
   
-  // Обновляем координаты в заголовке фильтров
   const filtersCoords = document.getElementById("filtersCoords");
   if (filtersCoords) {
     filtersCoords.textContent = `📍 ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
@@ -1628,7 +1608,7 @@ function setCenter(lat, lon, opts) {
 }
 
 // ============================================================
-// 11. ГЕОКОДИРОВАНИЕ
+// 12. ГЕОКОДИРОВАНИЕ
 // ============================================================
 async function geocodeAddress(address) {
   if (!address.trim()) return null;
@@ -1661,7 +1641,7 @@ async function reverseGeocode(lat, lon) {
 }
 
 // ============================================================
-// 12. ОБРАБОТЧИКИ ИНТЕРФЕЙСА
+// 13. ОБРАБОТЧИКИ ИНТЕРФЕЙСА
 // ============================================================
 document.getElementById("applyAddressBtn").addEventListener("click", async () => {
   const input = document.getElementById("addressInput");
@@ -1930,7 +1910,7 @@ function expandRadiusToIncludeStation(stationId) {
 }
 
 // ============================================================
-// 13. ТАБЛИЦА И КАРТА
+// 14. ТАБЛИЦА И КАРТА
 // ============================================================
 function currentRows() {
   const rows = [];
@@ -2433,7 +2413,7 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
 });
 
 // ============================================================
-// 14. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
+// 15. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
 // ============================================================
 document.getElementById('langRu').addEventListener('click', function() {
   if (currentLang === 'ru') return;
@@ -2464,33 +2444,43 @@ document.getElementById('langEn').addEventListener('click', function() {
 });
 
 // ============================================================
-// 15. ОБНОВЛЕНИЕ ДАТЫ КОММИТА
+// 16. ОБНОВЛЕНИЕ ДАТЫ КОММИТА
 // ============================================================
 async function updateCommitDate() {
   const pageBuiltLabel = document.getElementById("pageBuiltLabel");
-  if (!pageBuiltLabel) return;
+  if (!pageBuiltLabel) {
+    console.warn('⚠️ Элемент pageBuiltLabel не найден');
+    return;
+  }
   
-  pageBuiltLabel.textContent = t('loadingCommit');
+  console.log('🔄 Обновление даты коммита...');
   
+  // Сначала пытаемся получить дату из GitHub API
   const date = await getLastCommitDate();
+  
   if (date) {
     pageBuiltLabel.textContent = date;
+    console.log('✅ Дата коммита установлена из GitHub:', date);
   } else {
+    // Если GitHub API не доступен, используем текущую дату
     const now = new Date();
     const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
-    pageBuiltLabel.textContent = now.toLocaleString(locale, {
+    const fallbackDate = now.toLocaleString(locale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
+    pageBuiltLabel.textContent = fallbackDate;
+    console.log('⚠️ Использован fallback (текущая дата):', fallbackDate);
   }
+  
   updateStatusLine();
 }
 
 // ============================================================
-// 16. ИНИЦИАЛИЗАЦИЯ
+// 17. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 // Устанавливаем начальные значения с проверками
 const pageBuiltLabel = document.getElementById('pageBuiltLabel');
