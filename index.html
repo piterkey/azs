@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+  /* ВСЕ СТИЛИ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -1143,35 +1144,23 @@ function updateFilterBadge() {
 }
 
 // ============================================================
-// 4. ОБНОВЛЕНИЕ ЯЗЫКА
+// 4. ОБНОВЛЕНИЕ ЯЗЫКА (ИСПРАВЛЕННАЯ)
 // ============================================================
 function updateAllLabels() {
-  const elements = {
-    pageTitle: document.getElementById('pageTitle'),
-    headerEyebrow: document.getElementById('headerEyebrow'),
-    headerTitle: document.getElementById('headerTitle'),
-    urlLabel: document.getElementById('urlLabel'),
-    addressLabel: document.getElementById('addressLabel'),
-    fuelLabel: document.getElementById('fuelLabel'),
-    brandLabel: document.getElementById('brandLabel'),
-    allBrandsOption: document.getElementById('allBrandsOption'),
-    availabilityLabel: document.getElementById('availabilityLabel'),
-    thDistance: document.getElementById('thDistance'),
-    thAddress: document.getElementById('thAddress'),
-    thFuel: document.getElementById('thFuel'),
-    thPrice: document.getElementById('thPrice'),
-    thUpdated: document.getElementById('thUpdated'),
-    emptyState: document.getElementById('emptyState'),
-    saveHint: document.getElementById('saveHint'),
-    mapHint: document.getElementById('mapHint'),
-    centerBtnLabel: document.getElementById('centerBtnLabel'),
-  };
-
-  if (elements.pageTitle) document.title = t('pageTitle');
-  if (elements.pageTitle) elements.pageTitle.textContent = t('pageTitle');
-  if (elements.headerEyebrow) elements.headerEyebrow.textContent = t('headerEyebrow');
-  if (elements.headerTitle) elements.headerTitle.textContent = t('headerTitle');
+  // Проверяем каждый элемент перед обновлением
+  const pageTitle = document.getElementById('pageTitle');
+  if (pageTitle) {
+    document.title = t('pageTitle');
+    pageTitle.textContent = t('pageTitle');
+  }
   
+  const headerEyebrow = document.getElementById('headerEyebrow');
+  if (headerEyebrow) headerEyebrow.textContent = t('headerEyebrow');
+  
+  const headerTitle = document.getElementById('headerTitle');
+  if (headerTitle) headerTitle.textContent = t('headerTitle');
+  
+  // Обновляем все элементы с data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (key) {
@@ -1179,28 +1168,58 @@ function updateAllLabels() {
     }
   });
   
-  if (elements.urlLabel) elements.urlLabel.textContent = t('urlLabel');
-  if (elements.addressLabel) elements.addressLabel.textContent = t('addressLabel');
-  if (elements.coordsLabel) {
-    elements.coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
-  }
-  if (elements.fuelLabel) elements.fuelLabel.textContent = t('fuelLabel');
-  if (elements.brandLabel) elements.brandLabel.textContent = t('brandLabel');
-  if (elements.allBrandsOption) elements.allBrandsOption.textContent = t('allBrands');
-  if (elements.availabilityLabel) elements.availabilityLabel.textContent = t('availabilityLabel');
-  if (elements.showLabel) {
-    elements.showLabel.innerHTML = t('showLabel', { count: '' }) + ' <b id="limitCountLabel">все</b>';
-  }
-  if (elements.nearestLabel) elements.nearestLabel.textContent = t('nearestLabel');
+  const urlLabel = document.getElementById('urlLabel');
+  if (urlLabel) urlLabel.textContent = t('urlLabel');
   
-  if (elements.thDistance) elements.thDistance.innerHTML = t('thDistance') + '<span class="arrow"></span>';
-  if (elements.thAddress) elements.thAddress.innerHTML = t('thAddress') + '<span class="arrow"></span>';
-  if (elements.thFuel) elements.thFuel.innerHTML = t('thFuel') + '<span class="arrow"></span>';
-  if (elements.thPrice) elements.thPrice.innerHTML = t('thPrice') + '<span class="arrow"></span>';
-  if (elements.thUpdated) elements.thUpdated.innerHTML = t('thUpdated') + '<span class="arrow"></span>';
+  const addressLabel = document.getElementById('addressLabel');
+  if (addressLabel) addressLabel.textContent = t('addressLabel');
   
-  if (elements.emptyState) elements.emptyState.textContent = t('emptyState');
-  if (elements.saveHint) elements.saveHint.textContent = t('saveHint');
+  const coordsLabel = document.getElementById('coordsLabel');
+  if (coordsLabel) {
+    coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
+  }
+  
+  const fuelLabel = document.getElementById('fuelLabel');
+  if (fuelLabel) fuelLabel.textContent = t('fuelLabel');
+  
+  const brandLabel = document.getElementById('brandLabel');
+  if (brandLabel) brandLabel.textContent = t('brandLabel');
+  
+  const allBrandsOption = document.getElementById('allBrandsOption');
+  if (allBrandsOption) allBrandsOption.textContent = t('allBrands');
+  
+  const availabilityLabel = document.getElementById('availabilityLabel');
+  if (availabilityLabel) availabilityLabel.textContent = t('availabilityLabel');
+  
+  const showLabel = document.getElementById('showLabel');
+  if (showLabel) {
+    showLabel.innerHTML = t('showLabel', { count: '' }) + ' <b id="limitCountLabel">все</b>';
+  }
+  
+  const nearestLabel = document.getElementById('nearestLabel');
+  if (nearestLabel) nearestLabel.textContent = t('nearestLabel');
+  
+  // Заголовки таблицы
+  const thDistance = document.getElementById('thDistance');
+  if (thDistance) thDistance.innerHTML = t('thDistance') + '<span class="arrow"></span>';
+  
+  const thAddress = document.getElementById('thAddress');
+  if (thAddress) thAddress.innerHTML = t('thAddress') + '<span class="arrow"></span>';
+  
+  const thFuel = document.getElementById('thFuel');
+  if (thFuel) thFuel.innerHTML = t('thFuel') + '<span class="arrow"></span>';
+  
+  const thPrice = document.getElementById('thPrice');
+  if (thPrice) thPrice.innerHTML = t('thPrice') + '<span class="arrow"></span>';
+  
+  const thUpdated = document.getElementById('thUpdated');
+  if (thUpdated) thUpdated.innerHTML = t('thUpdated') + '<span class="arrow"></span>';
+  
+  const emptyState = document.getElementById('emptyState');
+  if (emptyState) emptyState.textContent = t('emptyState');
+  
+  const saveHint = document.getElementById('saveHint');
+  if (saveHint) saveHint.textContent = t('saveHint');
   
   const mapBtn = document.getElementById('toggleMapBtn');
   if (mapBtn) {
@@ -1213,9 +1232,14 @@ function updateAllLabels() {
     const isActive = centerModeHint.style.color === 'var(--accent)';
     centerModeHint.textContent = isActive ? t('centerModeOn') : t('centerModeOff');
   }
-  if (elements.mapHint) elements.mapHint.textContent = t('mapHint');
-  if (elements.centerBtnLabel) elements.centerBtnLabel.textContent = t('centerBtnLabel');
   
+  const mapHint = document.getElementById('mapHint');
+  if (mapHint) mapHint.textContent = t('mapHint');
+  
+  const centerBtnLabel = document.getElementById('centerBtnLabel');
+  if (centerBtnLabel) centerBtnLabel.textContent = t('centerBtnLabel');
+  
+  // Перестраиваем выпадающие списки
   rebuildFuelSelect();
   rebuildStatusToggles();
   updateFilterBadge();
@@ -1223,7 +1247,7 @@ function updateAllLabels() {
 }
 
 // ============================================================
-// 5. ПРИМЕНЕНИЕ ДАННЫХ (ИСПРАВЛЕННАЯ)
+// 5. ПРИМЕНЕНИЕ ДАННЫХ
 // ============================================================
 function applyNewRawData(rawStations, sourceLabel) {
   // ВРЕМЕННАЯ ОТЛАДКА
@@ -1446,7 +1470,7 @@ async function fetchFromUrl(url) {
 }
 
 // ============================================================
-// 7. ТОЧКА ОТСЧЁТА И РАДИУС (ИСПРАВЛЕННАЯ)
+// 7. ТОЧКА ОТСЧЁТА И РАДИУС
 // ============================================================
 function farthestDistanceKm() {
   let max = 0;
