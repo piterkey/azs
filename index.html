@@ -1181,9 +1181,23 @@ function updateAllLabels() {
   const addressLabel = document.getElementById('addressLabel');
   if (addressLabel) addressLabel.textContent = t('addressLabel');
   
+  // ИСПРАВЛЕНИЕ: не пересоздаём coordHint, а обновляем только текст
   const coordsLabel = document.getElementById('coordsLabel');
   if (coordsLabel) {
-    coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
+    // Находим существующий coordHint
+    const existingHint = document.getElementById('coordHint');
+    if (existingHint) {
+      // Если coordHint существует, обновляем только текст лейбла
+      // Удаляем старый текст, оставляем только span
+      coordsLabel.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          node.textContent = t('coordsLabel') + ' ';
+        }
+      });
+    } else {
+      // Если coordHint не существует (первый запуск), создаём заново
+      coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
+    }
   }
   
   const fuelLabel = document.getElementById('fuelLabel');
