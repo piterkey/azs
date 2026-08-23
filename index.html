@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+  /* ... все стили остаются без изменений ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -607,7 +608,7 @@
     <button class="btn ghost" id="fileBtn" data-i18n="loadJsonBtn">Загрузить JSON</button>
     <input type="file" id="fileInput" accept="application/json,.json">
     <div class="refresh-status-col">
-      <span class="refresh-status" id="refreshStatus">данные из выгрузки: 16.08.2026 09:49 UTC · станций: 0</span>
+      <span class="refresh-status" id="refreshStatus"><span data-i18n="defaultStatusPrefix">данные из выгрузки:</span> 16.08.2026 09:49 UTC · <span data-i18n="stationsCountLabel">станций:</span> 0</span>
       <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
     </div>
   </div>
@@ -675,7 +676,7 @@
   </div>
 
   <div class="count-row">
-    <p class="count-line" id="countLine">Показано: <b id="shownCount">0</b> из <b id="totalCount">0</b> АЗС</p>
+    <p class="count-line" id="countLine"><span data-i18n="shownLabel">Показано:</span> <b id="shownCount">0</b> из <b id="totalCount">0</b> <span data-i18n="stationsLabel">АЗС</span></p>
     <button class="btn ghost small" id="toggleMapBtn" data-i18n="hideMapBtn">Скрыть карту</button>
   </div>
 
@@ -766,6 +767,10 @@ const LOCALE = {
     footerText: 'Сгенерировано из выгрузки alfabank.ru/azs · {count} станций в базе · тайлы © OpenStreetMap',
     downloadLink: 'Скачать актуальную версию index.html',
     saveHint: '💡 Для сохранения страницы на диск используйте Ctrl+S (Windows) или Cmd+S (Mac)',
+    shownLabel: 'Показано:',
+    stationsLabel: 'АЗС',
+    stationsCountLabel: 'станций:',
+    defaultStatusPrefix: 'данные из выгрузки:',
     statusLabels: {
       available: 'Есть',
       unavailable: 'Нет',
@@ -816,6 +821,11 @@ const LOCALE = {
     repoNotFound: 'Файл stations.json в репозитории не найден (HTTP {status})',
     repoError: 'Не удалось загрузить stations.json из репозитория: {msg}',
     loadingCommit: 'загрузка...',
+    localFileBlocked: 'Проверка локального файла: доступ ограничен, продолжаем...',
+    skippingApiOnGithub: 'На GitHub Pages API не доступен из-за CORS, пробуем репозиторий...',
+    unknownDataStructure: 'Неизвестная структура данных. Ожидается массив или {data: [...]}',
+    noValidStations: 'Не найдено валидных АЗС в данных',
+    fileUpdated: 'файл обновлен',
   },
   en: {
     pageTitle: 'Gas stations nearby — fuel availability',
@@ -857,6 +867,10 @@ const LOCALE = {
     footerText: 'Generated from alfabank.ru/azs export · {count} stations in database · tiles © OpenStreetMap',
     downloadLink: 'Download latest version of index.html',
     saveHint: '💡 To save the page to disk use Ctrl+S (Windows) or Cmd+S (Mac)',
+    shownLabel: 'Showing:',
+    stationsLabel: 'stations',
+    stationsCountLabel: 'stations:',
+    defaultStatusPrefix: 'data from export:',
     statusLabels: {
       available: 'Available',
       unavailable: 'Unavailable',
@@ -907,6 +921,11 @@ const LOCALE = {
     repoNotFound: 'stations.json not found in repository (HTTP {status})',
     repoError: 'Failed to load stations.json from repository: {msg}',
     loadingCommit: 'loading...',
+    localFileBlocked: 'Local file access blocked, continuing...',
+    skippingApiOnGithub: 'API not available on GitHub Pages due to CORS, trying repository...',
+    unknownDataStructure: 'Unknown data structure. Expected array or {data: [...]}',
+    noValidStations: 'No valid stations found in data',
+    fileUpdated: 'file updated',
   }
 };
 
@@ -1144,7 +1163,6 @@ function updateStatusLine() {
   const builtEl = document.getElementById("pageBuiltLabel");
   let builtText = builtEl?.textContent || t('loadingCommit');
   
-  // Если текст всё ещё "загрузка..." или пустой, используем текущую дату
   if (builtText === t('loadingCommit') || builtText === 'loading...' || !builtText || builtText.trim() === '') {
     const now = new Date();
     const locale = currentLang === 'ru' ? 'ru-RU' : 'en-US';
@@ -1280,6 +1298,12 @@ function updateAllLabels() {
   const saveHint = document.getElementById('saveHint');
   if (saveHint) saveHint.textContent = t('saveHint');
   
+  const shownLabel = document.querySelector('[data-i18n="shownLabel"]');
+  if (shownLabel) shownLabel.textContent = t('shownLabel');
+  
+  const stationsLabel = document.querySelector('[data-i18n="stationsLabel"]');
+  if (stationsLabel) stationsLabel.textContent = t('stationsLabel');
+  
   const mapBtn = document.getElementById('toggleMapBtn');
   if (mapBtn) {
     const mapVisible = document.getElementById('mapBlock').style.display !== 'none';
@@ -1297,6 +1321,22 @@ function updateAllLabels() {
   
   const centerBtnLabel = document.getElementById('centerBtnLabel');
   if (centerBtnLabel) centerBtnLabel.textContent = t('centerBtnLabel');
+  
+  // Обновляем статусную строку
+  const statusEl = document.getElementById('refreshStatus');
+  if (statusEl) {
+    // Сохраняем текущий текст, но обновляем переводы для известных фраз
+    const currentText = statusEl.textContent;
+    // Если есть данные, обновляем через setStatus
+    if (DATA.length > 0) {
+      const sourceLabel = currentText.includes('репозитория') ? t('fromRepo') : 
+                         currentText.includes('локального') ? t('loadStatusLocalOk') :
+                         currentText.includes('файла') ? t('fromFile', { name: 'stations.json' }) :
+                         t('fromSite');
+      const statusMsg = t('dataLoadedFrom', { source: sourceLabel, count: DATA.length });
+      setStatus(statusMsg, "ok");
+    }
+  }
   
   rebuildFuelSelect();
   rebuildStatusToggles();
@@ -1328,7 +1368,7 @@ function applyNewRawData(rawStations, sourceLabel) {
     console.log('📊 Data is a direct array with', rawStations.length, 'items');
   } else {
     console.warn('⚠️ Unknown data structure:', Object.keys(rawStations));
-    setStatus('Неизвестная структура данных. Ожидается массив или {data: [...]}', 'err');
+    setStatus(t('unknownDataStructure'), 'err');
     return;
   }
   
@@ -1340,7 +1380,7 @@ function applyNewRawData(rawStations, sourceLabel) {
   
   if (DATA.length === 0) {
     console.warn('⚠️ No valid stations after normalization');
-    setStatus('Не найдено валидных АЗС в данных', 'err');
+    setStatus(t('noValidStations'), 'err');
     return;
   }
   
@@ -1359,7 +1399,7 @@ function applyNewRawData(rawStations, sourceLabel) {
   let statusMessage = t('dataLoadedFrom', { source: sourceLabel, count: DATA.length });
   if (updateTime) {
     const formattedTime = updateTime.toLocaleString(currentLang === 'ru' ? 'ru-RU' : 'en-US');
-    statusMessage += `, ${currentLang === 'ru' ? 'файл обновлен' : 'file updated'} ${formattedTime}`;
+    statusMessage += `, ${t('fileUpdated')} ${formattedTime}`;
   }
   setStatus(statusMessage, "ok");
   console.log('✅ Status set:', statusMessage);
@@ -1387,7 +1427,6 @@ async function fetchFromUrl(url) {
   console.log('📍 Current protocol:', window.location.protocol);
   
   try {
-    // Определяем, где мы находимся
     const isGitHubPages = window.location.hostname.includes('github.io');
     const isLocalFile = window.location.protocol === 'file:';
     const isWebServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
@@ -1399,7 +1438,6 @@ async function fetchFromUrl(url) {
     console.log('📁 Step 1: Checking local stations.json...');
     
     try {
-      // Для GitHub Pages используем относительный путь, для локального - тоже относительный
       const localPath = 'stations.json';
       console.log('📁 Fetching from:', localPath);
       
@@ -1432,13 +1470,12 @@ async function fetchFromUrl(url) {
         setStatus(t('loadStatusLocalNotFound', { status: localResp.status }), "err");
       }
     } catch (e) {
-      // Игнорируем CORS ошибки при локальном доступе
       if (e.message.includes('Failed to fetch') || 
           e.message.includes('CORS') || 
           e.message.includes('NetworkError') ||
           (isLocalFile && e.message.includes('fetch'))) {
         console.log('📁 Local file access blocked (CORS or file:// protocol), continuing...');
-        setStatus('Проверка локального файла: доступ ограничен, продолжаем...', "");
+        setStatus(t('localFileBlocked'), "");
       } else {
         console.warn('⚠️ Local file read error:', e.message);
         setStatus(t('loadStatusLocalReadError', { msg: e.message }), "err");
@@ -1446,7 +1483,6 @@ async function fetchFromUrl(url) {
     }
 
     // ====== 2. ПРОБУЕМ АПИ АЛЬФА-БАНКА ======
-    // Пропускаем API, если мы на GitHub Pages (там CORS всё равно не сработает)
     if (!isGitHubPages) {
       setStatus(t('loadStatusFromApi', { url: url }));
       console.log('🌐 Step 2: Trying API...', url);
@@ -1499,10 +1535,10 @@ async function fetchFromUrl(url) {
       }
     } else {
       console.log('🌐 Skipping API on GitHub Pages (CORS will fail)');
-      setStatus('На GitHub Pages API не доступен из-за CORS, пробуем репозиторий...', "");
+      setStatus(t('skippingApiOnGithub'), "");
     }
 
-    // ====== 3. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB (как запасной вариант) ======
+    // ====== 3. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB ======
     setStatus(t('checkingRepo'));
     console.log('🌐 Step 3: Checking GitHub repository...');
     try {
