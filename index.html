@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  /* ... все стили остаются без изменений ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -1057,7 +1056,7 @@ let state = {
   fuel: DEFAULT_FUEL,
   activeStatuses: new Set(["available"]),
   brand: "",
-  sorters: [],
+  sorters: [{ key: "distance_km", dir: 1 }],
   selectedStationId: null,
 };
 
@@ -2014,38 +2013,37 @@ function sortRows(rows) {
       const { key, dir } = sorter;
       let av = a[key], bv = b[key];
       
-      if (key === "fuel_price") {
-        // Для цены: null/undefined считаем как -Infinity (будут в конце при сортировке по возрастанию)
-        av = (av !== null && av !== undefined && !isNaN(parseFloat(av))) ? parseFloat(av) : -Infinity;
-        bv = (bv !== null && bv !== undefined && !isNaN(parseFloat(bv))) ? parseFloat(bv) : -Infinity;
-        if (av !== bv) return (av - bv) * dir;
-        continue;
-      } else if (key === "distance_km") {
-        // Для расстояния: всегда число
-        av = parseFloat(av) || 0;
-        bv = parseFloat(bv) || 0;
-        if (av !== bv) return (av - bv) * dir;
-        continue;
-      } else if (key === "fuel_updated_at") {
-        // Для даты: null/undefined считаем как -Infinity (будут в конце при сортировке по возрастанию)
-        const aTime = av ? new Date(av).getTime() : -Infinity;
-        const bTime = bv ? new Date(bv).getTime() : -Infinity;
-        if (aTime !== bTime) return (aTime - bTime) * dir;
-        continue;
-      } else if (key === "fuel_status") {
-        // Для статуса: используем порядок из STATUS_ORDER
-        av = STATUS_ORDER.indexOf(av);
-        bv = STATUS_ORDER.indexOf(bv);
-        if (av !== bv) return (av - bv) * dir;
-        continue;
-      } else if (typeof av === "string" && typeof bv === "string") {
-        // Для строковых полей (адрес, бренд)
-        const result = av.localeCompare(bv, "ru");
-        if (result !== 0) return result * dir;
-        continue;
+      // Обработка null/undefined
+      if (av === null || av === undefined) av = -Infinity;
+      if (bv === null || bv === undefined) bv = -Infinity;
+      
+      switch (key) {
+        case "distance_km":
+          av = parseFloat(av) || 0;
+          bv = parseFloat(bv) || 0;
+          break;
+        case "fuel_price":
+          av = !isNaN(parseFloat(av)) ? parseFloat(av) : -Infinity;
+          bv = !isNaN(parseFloat(bv)) ? parseFloat(bv) : -Infinity;
+          break;
+        case "fuel_updated_at":
+          av = av ? new Date(av).getTime() : -Infinity;
+          bv = bv ? new Date(bv).getTime() : -Infinity;
+          break;
+        case "fuel_status":
+          av = STATUS_ORDER.indexOf(av);
+          bv = STATUS_ORDER.indexOf(bv);
+          break;
+        default:
+          // Для строковых полей (адрес, бренд)
+          if (typeof av === "string" && typeof bv === "string") {
+            const result = av.localeCompare(bv, "ru");
+            if (result !== 0) return result * dir;
+            continue;
+          }
+          break;
       }
       
-      // Для остальных случаев (числа)
       if (av !== bv) return (av - bv) * dir;
     }
     return 0;
@@ -2285,12 +2283,17 @@ function createMobileSortRow() {
       const existingIndex = state.sorters.findIndex(s => s.key === key);
       
       if (existingIndex !== -1) {
-        state.sorters.splice(existingIndex, 1);
-        if (state.sorters.length === 0) {
-          state.sorters = [{ key: "distance_km", dir: 1 }];
+        const currentDir = state.sorters[existingIndex].dir;
+        if (currentDir === 1) {
+          state.sorters[existingIndex].dir = -1;
+        } else {
+          state.sorters.splice(existingIndex, 1);
+          if (state.sorters.length === 0) {
+            state.sorters = [{ key: "distance_km", dir: 1 }];
+          }
         }
       } else {
-        state.sorters.push({ key, dir: 1 });
+        state.sorters.unshift({ key, dir: 1 });
       }
       
       render(state.selectedStationId);
@@ -2380,12 +2383,17 @@ document.querySelectorAll("thead th").forEach(th => {
     const existingIndex = state.sorters.findIndex(s => s.key === key);
     
     if (existingIndex !== -1) {
-      state.sorters.splice(existingIndex, 1);
-      if (state.sorters.length === 0) {
-        state.sorters = [{ key: "distance_km", dir: 1 }];
+      const currentDir = state.sorters[existingIndex].dir;
+      if (currentDir === 1) {
+        state.sorters[existingIndex].dir = -1;
+      } else {
+        state.sorters.splice(existingIndex, 1);
+        if (state.sorters.length === 0) {
+          state.sorters = [{ key: "distance_km", dir: 1 }];
+        }
       }
     } else {
-      state.sorters.push({ key, dir: 1 });
+      state.sorters.unshift({ key, dir: 1 });
     }
     
     render(state.selectedStationId);
