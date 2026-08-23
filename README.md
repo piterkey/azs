@@ -32,9 +32,8 @@
 1.  Download the `index.html` file using one of the following methods:
     *   Click the **"Download the latest version of index.html"** link at the bottom of the page.
     *   Use the browser's **"Save As"** feature (Ctrl+S / Cmd+S).
-2.  For the best experience, it's recommended to run a local web server (e.g., with Python: `python3 -m http.server 8000`). This allows the page to load the `stations.json` file if it's placed in the same folder.
-3.  You can also open the downloaded file directly in any modern browser (Chrome, Firefox, Safari, Edge).
-4.  The page will attempt to load data in the following order:
+2.  You can also open the downloaded file directly in any modern browser (Chrome, Firefox, Safari, Edge).
+3.  The page will attempt to load data in the following order:
     1.  **Local file** (`stations.json` in the same folder).
     2.  **Alfa-Bank API** (default source).
     3.  **GitHub repository** (fallback).
