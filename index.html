@@ -57,7 +57,6 @@
   .sub { font-family: 'IBM Plex Mono', monospace; color: var(--muted); font-size: 13px; margin: 0; }
   .sub b { color: var(--text); font-weight: 600; }
 
-  /* Переключатель языков */
   .lang-switcher {
     display: inline-flex;
     gap: 6px;
@@ -394,6 +393,8 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px;
     color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .refresh-status-col {
     flex: 1;
@@ -541,7 +542,6 @@
     border-bottom-color: var(--accent) !important;
   }
 
-  /* Анимация пульсации для сердечка */
   @keyframes pulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.15); }
@@ -805,6 +805,10 @@ const LOCALE = {
     fromFile: 'из файла {name}',
     fromSite: 'с сайта',
     defaultStatus: 'данные из выгрузки: {built} · станций: {count}',
+    // Дополнительные ошибки
+    errEnterUrl: 'Введите URL',
+    errApiFetch: 'Ошибка загрузки с API. Возможно, проблема с CORS. Используйте локальный файл stations.json',
+    errGeneral: 'Ошибка загрузки: {msg}',
   },
   en: {
     pageTitle: 'Gas stations nearby — fuel availability',
@@ -887,6 +891,9 @@ const LOCALE = {
     fromFile: 'from file {name}',
     fromSite: 'from site',
     defaultStatus: 'data from export: {built} · stations: {count}',
+    errEnterUrl: 'Enter URL',
+    errApiFetch: 'Failed to load from API. Possibly CORS issue. Use local stations.json file',
+    errGeneral: 'Load error: {msg}',
   }
 };
 
@@ -896,21 +903,18 @@ function t(key, params = {}) {
   const dict = LOCALE[currentLang];
   let text = dict[key] || key;
   for (const [k, v] of Object.entries(params)) {
-    text = text.replace(`{${k}}`, v);
+    text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
   }
   return text;
 }
 
 function updateAllLabels() {
-  // Заголовок страницы
   document.title = t('pageTitle');
   document.getElementById('pageTitle').textContent = t('pageTitle');
   
-  // Header
   document.getElementById('headerEyebrow').textContent = t('headerEyebrow');
   document.getElementById('headerTitle').textContent = t('headerTitle');
   
-  // Кнопки и лейблы с data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (key) {
@@ -918,7 +922,6 @@ function updateAllLabels() {
     }
   });
   
-  // Специальные лейблы
   document.getElementById('urlLabel').textContent = t('urlLabel');
   document.getElementById('addressLabel').textContent = t('addressLabel');
   document.getElementById('coordsLabel').innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
@@ -929,42 +932,31 @@ function updateAllLabels() {
   document.getElementById('showLabel').innerHTML = t('showLabel', { count: '' }) + ' <b id="limitCountLabel">все</b>';
   document.getElementById('nearestLabel').textContent = t('nearestLabel');
   
-  // Заголовки таблицы
   document.getElementById('thDistance').innerHTML = t('thDistance') + '<span class="arrow"></span>';
   document.getElementById('thAddress').innerHTML = t('thAddress') + '<span class="arrow"></span>';
   document.getElementById('thFuel').innerHTML = t('thFuel') + '<span class="arrow"></span>';
   document.getElementById('thPrice').innerHTML = t('thPrice') + '<span class="arrow"></span>';
   document.getElementById('thUpdated').innerHTML = t('thUpdated') + '<span class="arrow"></span>';
   
-  // Состояние пустого списка
   document.getElementById('emptyState').textContent = t('emptyState');
-  
-  // Hint для сохранения
   document.getElementById('saveHint').textContent = t('saveHint');
   
-  // Переключатель карты
   const mapBtn = document.getElementById('toggleMapBtn');
   const mapVisible = document.getElementById('mapBlock').style.display !== 'none';
   mapBtn.textContent = mapVisible ? t('hideMapBtn') : t('showMapBtn');
   
-  // Центр точки
   const centerModeOn = document.getElementById('centerModeHint').style.color === 'var(--accent)';
   document.getElementById('centerModeHint').textContent = centerModeOn ? t('centerModeOn') : t('centerModeOff');
   document.getElementById('mapHint').textContent = t('mapHint');
   
-  // Обновляем выпадающие списки топлива и статусов
   rebuildFuelSelect();
   rebuildStatusToggles();
-  
-  // Обновляем фильтры
   updateFilterBadge();
-  
-  // Обновляем строку состояния
   updateStatusLine();
 }
 
 // ============================================================
-// 2. ОСНОВНАЯ ЛОГИКА (с использованием локализации)
+// 2. ОСНОВНАЯ ЛОГИКА
 // ============================================================
 
 const ORIGINAL_API_URL = "https://alfabank.ru/api/v1/azs-stations/public/stations";
@@ -1127,7 +1119,6 @@ function rebuildStatusToggles() {
 }
 
 function updateStatusLine() {
-  // Обновляем header sub
   const centerStr = state.centerLat.toFixed(6) + ", " + state.centerLon.toFixed(6);
   const builtStr = document.getElementById("pageBuiltLabel").textContent;
   const loadedStr = document.getElementById("dataLoadedLabel").textContent;
@@ -1142,9 +1133,7 @@ function updateFilterBadge() {
   const badge = document.getElementById("filterBadge");
   let parts = [];
   
-  if (state.brand) {
-    parts.push(state.brand);
-  }
+  if (state.brand) parts.push(state.brand);
   
   const fuelLabel = t('fuelLabels')[state.fuel] || state.fuel;
   parts.push(fuelLabel);
@@ -1171,7 +1160,7 @@ function updateFilterBadge() {
   }
 }
 
-// ---------- Загрузка данных ----------
+// ---------- ЗАГРУЗКА ДАННЫХ (исправленная) ----------
 function applyNewRawData(rawStations, sourceLabel) {
   setStatus(t('loadStatusParsing', { count: rawStations.length }));
   showProgress(null);
@@ -1213,39 +1202,7 @@ async function fetchFromUrl(url) {
   showProgress(null);
   
   try {
-    setStatus(t('loadStatusFromApi', { url: url }));
-    try {
-      const apiController = new AbortController();
-      const apiTimeout = setTimeout(() => apiController.abort(), 6000);
-      let directResp;
-      try {
-        directResp = await fetch(url, {
-          cache: "no-store",
-          headers: {
-            'Accept': 'application/json',
-          },
-          signal: apiController.signal,
-        });
-      } finally {
-        clearTimeout(apiTimeout);
-      }
-
-      if (directResp.ok) {
-        const raw = await directResp.json();
-        applyNewRawData(raw, t('fromSite'));
-        btn.disabled = false; btn.classList.remove("loading");
-        hideProgress();
-        return;
-      } else {
-        setStatus(t('loadStatusApiError', { status: directResp.status, text: directResp.statusText }), "err");
-        console.error(`API error: ${directResp.status} ${directResp.statusText}`);
-      }
-    } catch (e) {
-      const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
-      setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
-      console.error("API connection error:", e);
-    }
-
+    // СНАЧАЛА ПРОВЕРЯЕМ ЛОКАЛЬНЫЙ ФАЙЛ (для GitHub Pages)
     setStatus(t('loadStatusLocal'));
     try {
       const localResp = await fetch('stations.json', { cache: "no-store" });
@@ -1268,13 +1225,47 @@ async function fetchFromUrl(url) {
       console.error("Error reading stations.json:", e);
     }
 
+    // ЕСЛИ НЕТ ЛОКАЛЬНОГО — ПРОБУЕМ API
+    setStatus(t('loadStatusFromApi', { url: url }));
+    try {
+      const apiController = new AbortController();
+      const apiTimeout = setTimeout(() => apiController.abort(), 8000);
+      let directResp;
+      try {
+        directResp = await fetch(url, {
+          cache: "no-store",
+          headers: { 'Accept': 'application/json' },
+          signal: apiController.signal,
+        });
+      } finally {
+        clearTimeout(apiTimeout);
+      }
+
+      if (directResp.ok) {
+        const raw = await directResp.json();
+        applyNewRawData(raw, t('fromSite'));
+        btn.disabled = false; btn.classList.remove("loading");
+        hideProgress();
+        return;
+      } else {
+        setStatus(t('loadStatusApiError', { status: directResp.status, text: directResp.statusText }), "err");
+        console.error(`API error: ${directResp.status} ${directResp.statusText}`);
+      }
+    } catch (e) {
+      const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
+      setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
+      console.error("API connection error:", e);
+      setStatus(t('errApiFetch'), "err");
+    }
+
+    // ВСЕ СПОСОБЫ НЕ УДАЛИСЬ
     hideProgress();
     setStatus(t('loadStatusFailed', { url: url }), "err");
     console.error("All data loading methods failed");
     
   } catch (err) {
     hideProgress();
-    setStatus("Error: " + err.message, "err");
+    setStatus(t('errGeneral', { msg: err.message }), "err");
     console.error("Loading error:", err);
   } finally {
     btn.disabled = false; btn.classList.remove("loading");
@@ -1479,7 +1470,6 @@ distSlider.addEventListener("input", function() {
   updateFilterBadge();
 });
 
-// ---------- Обновление количества АЗС в радиусе ----------
 function updateCountInRadius() {
   if (!DATA.length) return;
   let count = 0;
@@ -1602,7 +1592,7 @@ function expandRadiusToIncludeStation(stationId) {
   return true;
 }
 
-// ---------- Сборка строк для текущего состояния ----------
+// ---------- Сборка строк ----------
 function currentRows() {
   const rows = [];
   for (const s of DATA) {
@@ -1634,7 +1624,6 @@ function currentRows() {
 
 function sortRows(rows) {
   const { sorters } = state;
-  
   const effectiveSorters = sorters.length > 0 ? sorters : [{ key: "distance_km", dir: 1 }];
   
   return rows.slice().sort((a, b) => {
@@ -1746,7 +1735,6 @@ let selectedMarker = null;
 let isPopupOpen = false;
 window.isProgrammaticClose = false;
 
-// ---------- Снятие выделения ----------
 function clearSelection() {
   state.selectedStationId = null;
   document.querySelectorAll('#tableBody tr').forEach(tr => {
@@ -1758,7 +1746,6 @@ function clearSelection() {
   renderMap(sorted, null);
 }
 
-// ---------- Отрисовка карты ----------
 function renderMap(rows, keepSelectionId) {
   window.isProgrammaticClose = true;
   markers.forEach(m => map.removeLayer(m));
@@ -1840,7 +1827,6 @@ function renderMap(rows, keepSelectionId) {
   }
 }
 
-// ---------- Выделение строки ----------
 function highlightRow(stationId) {
   if (state.selectedStationId === stationId) {
     clearSelection();
@@ -1866,7 +1852,6 @@ function highlightRow(stationId) {
   map.panTo([station.latitude, station.longitude]);
 }
 
-// ---------- Мобильная строка сортировки ----------
 function createMobileSortRow() {
   const sortKeys = [
     { key: 'distance_km', label: currentLang === 'ru' ? 'Расстояние' : 'Distance' },
@@ -1914,7 +1899,6 @@ function createMobileSortRow() {
   return container;
 }
 
-// ---------- Таблица ----------
 function render(keepSelectionId) {
   const filtered = currentRows();
   const sorted = sortRows(filtered);
@@ -1986,7 +1970,6 @@ function render(keepSelectionId) {
   renderMap(sorted, selectionId);
 }
 
-// ---------- Обработчики кликов по заголовкам ----------
 document.querySelectorAll("thead th").forEach(th => {
   th.addEventListener("click", () => {
     const key = th.dataset.key;
@@ -2006,7 +1989,6 @@ document.querySelectorAll("thead th").forEach(th => {
   });
 });
 
-// ---------- Скрытие/показ панели фильтров ----------
 const controlsWrapper = document.getElementById("controlsWrapper");
 const controlsToggle = document.getElementById("controlsToggle");
 let filtersVisible = true;
@@ -2019,7 +2001,6 @@ controlsToggle.addEventListener("click", () => {
   setTimeout(() => map.invalidateSize(), 300);
 });
 
-// ---------- Показать/скрыть карту ----------
 let mapVisible = true;
 document.getElementById("toggleMapBtn").addEventListener("click", () => {
   mapVisible = !mapVisible;
@@ -2032,16 +2013,14 @@ document.getElementById("toggleMapBtn").addEventListener("click", () => {
   }
 });
 
-// ---------- Обработчики кнопок фильтров ----------
 document.getElementById("applyFiltersBtn").addEventListener("click", applyFilters);
 document.getElementById("resetFiltersBtn").addEventListener("click", resetAllFilters);
 
-// ---------- Кнопки загрузки ----------
 document.getElementById("applyUrlBtn").addEventListener("click", async () => {
   const input = document.getElementById("apiUrlInput");
   let url = input.value.trim();
   if (!url) {
-    setStatus(currentLang === 'ru' ? 'Введите URL' : 'Enter URL', "err");
+    setStatus(t('errEnterUrl'), "err");
     return;
   }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -2114,7 +2093,6 @@ document.getElementById('langRu').addEventListener('click', function() {
   updateAllLabels();
   render(state.selectedStationId);
   updateCenterButtonState();
-  // Обновляем подпись маркера центра
   centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
 });
 
@@ -2130,13 +2108,11 @@ document.getElementById('langEn').addEventListener('click', function() {
 });
 
 // ---------- Инициализация ----------
-// Загружаем дефолтные значения
 document.getElementById('pageBuiltLabel').textContent = '16.08.2026 09:49 UTC';
 document.getElementById('dataLoadedLabel').textContent = t('dataLoaded');
 document.getElementById('limitHint').textContent = t('limitHint');
 document.getElementById('stepHint').textContent = t('stepHint', { step: 0.1 });
 
-// Инициализация UI
 rebuildFuelSelect();
 rebuildStatusToggles();
 rebuildBrandOptions();
