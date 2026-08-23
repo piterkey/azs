@@ -1,120 +1,124 @@
 # azs
-Gasoline availability on stations
-# 🗺️ Карта АЗС с наличием топлива
+> Gasoline availability on stations
 
-Интерактивная веб-карта автозаправочных станций (АЗС) с отображением наличия топлива, цен и фильтрацией по различным параметрам.
+**English** | [Русский](./README.ru.md)
 
-## 🚀 Демо
+# 🗺️ Interactive Map of Gas Stations with Fuel Availability
 
-Страница доступна по адресу:  
+An interactive web map of gas stations (AZS) displaying fuel availability, prices, and filtering by various parameters.
+
+## 🚀 Demo
+
+The page is available at:  
 [https://piterkey.github.io/azs/](https://piterkey.github.io/azs/)
 
-## ✨ Возможности
+## ✨ Features
 
-- **Интерактивная карта** — визуализация АЗС на карте OpenStreetMap с цветовой индикацией наличия топлива
-- **Поиск по адресу** — автоматическое определение координат по введённому адресу (город, улица, дом)
-- **Фильтрация**:
-  - По радиусу поиска (с прогрессивным шагом)
-  - По количеству ближайших АЗС
-  - По марке топлива (АИ-92, АИ-95, АИ-98/100, ДТ)
-  - По бренду АЗС
-  - По статусу наличия топлива (Есть, Нет, Вероятно нет, и т.д.)
-- **Сортировка** — по расстоянию, адресу, цене, дате обновления
-- **Актуальные данные** — загрузка данных напрямую с API Альфа-Банка
-- **Гибкая настройка источника данных** — возможность указать любой URL с JSON-данными
-- **Адаптивный дизайн** — корректное отображение на мобильных устройствах
-- **Тёмная тема** — комфортный просмотр в любых условиях
+- **Interactive Map** — visualization of gas stations on OpenStreetMap with color-coded fuel availability
+- **Address Search** — automatic coordinate detection from entered address (city, street, house number)
+- **Filtering**:
+  - By search radius (with progressive step)
+  - By number of nearest stations
+  - By fuel type (AI-92, AI-95, AI-98/100, Diesel)
+  - By gas station brand
+  - By fuel availability status (Available, Unavailable, Likely unavailable, etc.)
+- **Sorting** — by distance, address, price, update date
+- **Up-to-date Data** — loads data directly from Alfa-Bank API
+- **Flexible Data Source** — ability to specify any URL with JSON data
+- **Responsive Design** — correct display on mobile devices
+- **Dark Theme** — comfortable viewing in any conditions
 
-## 📦 Установка и запуск
+## 📦 Installation and Launch
 
-### Локальный запуск
+### Local Launch
 
-1. Скачайте файл `index.html` одним из способов:
-   - Нажмите на ссылку «Скачать актуальную версию index.html» внизу страницы
-   - Используйте кнопку «Сохранить как» в браузере (Ctrl+S / Cmd+S)
-2. Откройте скачанный файл в любом современном браузере (Chrome, Firefox, Safari, Edge)
-3. Страница автоматически загрузит данные с API Альфа-Банка
+1. Download the `index.html` file using one of the following methods:
+   - Click the "Download the latest version of index.html" link at the bottom of the page
+   - Use the browser's "Save As" button (Ctrl+S / Cmd+S)
+2. Open the downloaded file in any modern browser (Chrome, Firefox, Safari, Edge)
+3. The page will automatically load data from the Alfa-Bank API
 
-## 📥 Скачать актуальную версию
+## 📥 Download the Latest Version
 
-**Всегда свежий файл `index.html` можно скачать по ссылке:**  
-[⬇️ Скачать index.html](https://raw.githubusercontent.com/piterkey/azs/main/index.html)
+**The always-fresh `index.html` file can be downloaded from:**  
+[⬇️ Download index.html](https://raw.githubusercontent.com/piterkey/azs/main/index.html)
 
-Или используйте прямую ссылку на файл в репозитории:  
+Or use the direct link to the file in the repository:  
 [https://github.com/piterkey/azs/blob/main/index.html](https://github.com/piterkey/azs/blob/main/index.html)
 
-> **Для локального использования:** скачайте файл и откройте его в браузере. При наличии файла `stations.json` в той же папке, страница загрузит данные из него. (ℹ️ Размер `stations.json` > 20 МБ)
+> **For local use:** download the file and open it in your browser. If a `stations.json` file is present in the same folder, the page will load data from it. (ℹ️ `stations.json` size > 20 MB)
 
-## 🔧 Использование
+## 🔧 Usage
 
-### Основные элементы управления
+### Main Controls
 
-1. **Адрес** — введите адрес для быстрого перехода к точке
-2. **Координаты** — ручной ввод координат (широта, долгота)
-3. **Радиус** — слайдер или числовой ввод с прогрессивным шагом
-4. **Количество АЗС** — ограничение количества отображаемых станций
-5. **Марка топлива** — выбор типа топлива для отображения
-6. **Бренд** — фильтр по бренду АЗС
-7. **Наличие топлива** — множественный выбор статусов
+1. **Address** — enter an address to quickly navigate to the point
+2. **Coordinates** — manual coordinate entry (latitude, longitude)
+3. **Radius** — slider or numeric input with progressive step
+4. **Number of Stations** — limit the number of displayed stations
+5. **Fuel Type** — select the fuel type to display
+6. **Brand** — filter by gas station brand
+7. **Fuel Availability** — multiple status selection
 
-### Управление картой
+### Map Controls
 
-- **Клик** по карте — установка новой точки отсчёта (в режиме «Указать центральную точку на карте»)
-- **Клик** по маркеру АЗС — просмотр информации о станции и выделение в таблице
-- **Клик** по строке в таблице — подсветка АЗС на карте и открытие попапа
+- **Click** on the map — set a new reference point (in "Set center point on map" mode)
+- **Click** on a station marker — view station information and highlight in the table
+- **Click** on a table row — highlight the station on the map and open its popup
 
-### Загрузка данных
+### Data Loading
 
-- **Обновить** — загрузка данных с текущего URL
-- **Загрузить JSON** — ручная загрузка JSON-файла с данными
-- **URL данных** — возможность указать альтернативный источник данных
+- **Refresh** — load data from the current URL
+- **Load JSON** — manually upload a JSON file with data
+- **Data URL** — ability to specify an alternative data source
 
-## 📊 Источник данных
+## 📊 Data Source
 
-По умолчанию используется API Альфа-Банка:  
+The default data source is the Alfa-Bank API:  
 `https://alfabank.ru/api/v1/azs-stations/public/stations`
 
-Данные включают:
-- Название и бренд АЗС
-- Адрес и координаты
-- Наличие и цены на топливо
-- Время последнего обновления
+The data includes:
+- Gas station name and brand
+- Address and coordinates
+- Fuel availability and prices
+- Last update time
 
-## 🗺️ Технологии
+## 🗺️ Technologies
 
-- **Leaflet.js** — библиотека для интерактивных карт
-- **OpenStreetMap** — картографические тайлы
-- **Nominatim** — геокодирование (поиск по адресу и обратное геокодирование)
-- **Ванильный JavaScript** — без дополнительных фреймворков
-- **CSS-переменные** — кастомизация темы
+- **Leaflet.js** — interactive maps library
+- **OpenStreetMap** — map tiles
+- **Nominatim** — geocoding (address search and reverse geocoding)
+- **Vanilla JavaScript** — no additional frameworks
+- **CSS Variables** — theme customization
 
-## 📱 Адаптивность
+## 📱 Responsiveness
 
-Интерфейс оптимизирован для:
-- Десктопных компьютеров
-- Планшетов
-- Мобильных телефонов
+The interface is optimized for:
+- Desktop computers
+- Tablets
+- Mobile phones
 
-## 🔒 Конфиденциальность
+## 🔒 Privacy
 
-- Все данные загружаются напрямую в браузере
-- Данные не сохраняются на сервере
-- Координаты и адреса не передаются третьим лицам
-- Используются только публичные API (OpenStreetMap, Nominatim)
+- All data is loaded directly in the browser
+- Data is not stored on the server
+- Coordinates and addresses are not transmitted to third parties
+- Only public APIs are used (OpenStreetMap, Nominatim)
 
-## 📄 Лицензия
+## 📄 License
 
-Этот проект распространяется под лицензией **MIT**.
+This project is distributed under the **MIT** license.
 
-### Почему MIT?
+### Why MIT?
 
-- **Простота** — короткий и понятный текст
-- **Свобода** — разрешает использовать, изменять, распространять
-- **Безопасность** — не требует открытия исходного кода производных работ
-- **Популярность** — самая распространённая лицензия для веб-проектов
-- **Совместимость** — позволяет использовать код в любых проектах
+- **Simplicity** — short and clear text
+- **Freedom** — allows use, modification, distribution
+- **Safety** — does not require open-sourcing derivative works
+- **Popularity** — the most common license for web projects
+- **Compatibility** — allows using the code in any projects
 
-### Текст лицензии MIT
+### MIT License Text
+
 MIT License
 
 Copyright (c) 2026 piterkey
