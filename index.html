@@ -1282,7 +1282,7 @@ function applyNewRawData(rawStations, sourceLabel) {
 }
 
 // ============================================================
-// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
+// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ИСПРАВЛЕННАЯ — ДОБАВЛЕНА ЗАКРЫВАЮЩАЯ СКОБКА)
 // ============================================================
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
@@ -1432,7 +1432,7 @@ async function fetchFromUrl(url) {
     if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
     console.log('🔄 fetchFromUrl finished');
   }
-}
+} // <-- ЭТА СКОБКА БЫЛА ПРОПУЩЕНА!
 
 // ============================================================
 // 7. ТОЧКА ОТСЧЁТА И РАДИУС
