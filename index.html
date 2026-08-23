@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+  /* ... ВСЕ СТИЛИ ТАКИЕ ЖЕ, КАК В ПРЕДЫДУЩЕЙ ВЕРСИИ ... */
   :root {
     --bg: #15181a;
     --panel: #1d2124;
@@ -721,7 +722,7 @@
 
 <script>
 // ============================================================
-// 1. ЛОКАЛИЗАЦИЯ
+// 1. ЛОКАЛИЗАЦИЯ (ПОЛНАЯ)
 // ============================================================
 const LOCALE = {
   ru: {
@@ -917,114 +918,9 @@ function t(key, params = {}) {
   return text;
 }
 
-function updateAllLabels() {
-  const elements = {
-    pageTitle: document.getElementById('pageTitle'),
-    headerEyebrow: document.getElementById('headerEyebrow'),
-    headerTitle: document.getElementById('headerTitle'),
-    urlLabel: document.getElementById('urlLabel'),
-    addressLabel: document.getElementById('addressLabel'),
-    fuelLabel: document.getElementById('fuelLabel'),
-    brandLabel: document.getElementById('brandLabel'),
-    allBrandsOption: document.getElementById('allBrandsOption'),
-    availabilityLabel: document.getElementById('availabilityLabel'),
-    thDistance: document.getElementById('thDistance'),
-    thAddress: document.getElementById('thAddress'),
-    thFuel: document.getElementById('thFuel'),
-    thPrice: document.getElementById('thPrice'),
-    thUpdated: document.getElementById('thUpdated'),
-    emptyState: document.getElementById('emptyState'),
-    saveHint: document.getElementById('saveHint'),
-    mapHint: document.getElementById('mapHint'),
-    centerBtnLabel: document.getElementById('centerBtnLabel'),
-  };
-
-  if (elements.pageTitle) document.title = t('pageTitle');
-  if (elements.pageTitle) elements.pageTitle.textContent = t('pageTitle');
-  if (elements.headerEyebrow) elements.headerEyebrow.textContent = t('headerEyebrow');
-  if (elements.headerTitle) elements.headerTitle.textContent = t('headerTitle');
-  
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    if (key) {
-      el.textContent = t(key);
-    }
-  });
-  
-  if (elements.urlLabel) elements.urlLabel.textContent = t('urlLabel');
-  if (elements.addressLabel) elements.addressLabel.textContent = t('addressLabel');
-  if (elements.coordsLabel) {
-    elements.coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
-  }
-  if (elements.fuelLabel) elements.fuelLabel.textContent = t('fuelLabel');
-  if (elements.brandLabel) elements.brandLabel.textContent = t('brandLabel');
-  if (elements.allBrandsOption) elements.allBrandsOption.textContent = t('allBrands');
-  if (elements.availabilityLabel) elements.availabilityLabel.textContent = t('availabilityLabel');
-  if (elements.showLabel) {
-    elements.showLabel.innerHTML = t('showLabel', { count: '' }) + ' <b id="limitCountLabel">все</b>';
-  }
-  if (elements.nearestLabel) elements.nearestLabel.textContent = t('nearestLabel');
-  
-  if (elements.thDistance) elements.thDistance.innerHTML = t('thDistance') + '<span class="arrow"></span>';
-  if (elements.thAddress) elements.thAddress.innerHTML = t('thAddress') + '<span class="arrow"></span>';
-  if (elements.thFuel) elements.thFuel.innerHTML = t('thFuel') + '<span class="arrow"></span>';
-  if (elements.thPrice) elements.thPrice.innerHTML = t('thPrice') + '<span class="arrow"></span>';
-  if (elements.thUpdated) elements.thUpdated.innerHTML = t('thUpdated') + '<span class="arrow"></span>';
-  
-  if (elements.emptyState) elements.emptyState.textContent = t('emptyState');
-  if (elements.saveHint) elements.saveHint.textContent = t('saveHint');
-  
-  const mapBtn = document.getElementById('toggleMapBtn');
-  if (mapBtn) {
-    const mapVisible = document.getElementById('mapBlock').style.display !== 'none';
-    mapBtn.textContent = mapVisible ? t('hideMapBtn') : t('showMapBtn');
-  }
-  
-  const centerModeHint = document.getElementById('centerModeHint');
-  if (centerModeHint) {
-    const isActive = centerModeHint.style.color === 'var(--accent)';
-    centerModeHint.textContent = isActive ? t('centerModeOn') : t('centerModeOff');
-  }
-  if (elements.mapHint) elements.mapHint.textContent = t('mapHint');
-  if (elements.centerBtnLabel) elements.centerBtnLabel.textContent = t('centerBtnLabel');
-  
-  rebuildFuelSelect();
-  rebuildStatusToggles();
-  updateFilterBadge();
-  updateStatusLine();
-}
-
 // ============================================================
-// 2. ОСНОВНАЯ ЛОГИКА
+// 2. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
-
-const ORIGINAL_API_URL = "https://alfabank.ru/api/v1/azs-stations/public/stations";
-const ORIGINAL_CENTER_LAT = 55.86449228891424;
-const ORIGINAL_CENTER_LON = 37.61043463745005;
-const DEFAULT_FUEL = "AI95";
-
-let DATA = [];
-let API_URL = ORIGINAL_API_URL;
-
-const STATUS_ORDER = ["available", "probably_unavailable", "unknown", "unavailable", "closed", "no_data"];
-const FUEL_ORDER = ["AI92", "AI95", "AI98_100", "DIESEL"];
-let BRANDS = [];
-
-let state = {
-  centerLat: ORIGINAL_CENTER_LAT,
-  centerLon: ORIGINAL_CENTER_LON,
-  maxDist: 5.00,
-  limit: 0,
-  fuel: DEFAULT_FUEL,
-  activeStatuses: new Set(["available"]),
-  brand: "",
-  sorters: [],
-  selectedStationId: null,
-};
-
-let centerModeActive = false;
-
-// ---------- Вспомогательные функции ----------
 function setStatus(text, cls) {
   const el = document.getElementById("refreshStatus");
   if (el) {
@@ -1083,13 +979,47 @@ function fmtDate(iso) {
   return Math.round(diffH/24) + (currentLang === 'ru' ? ' дн назад' : ' d ago');
 }
 
-// ---------- Нормализация данных ----------
+// ============================================================
+// 3. НОРМАЛИЗАЦИЯ ДАННЫХ
+// ============================================================
+const FUEL_ORDER = ["AI92", "AI95", "AI98_100", "DIESEL"];
+const STATUS_ORDER = ["available", "probably_unavailable", "unknown", "unavailable", "closed", "no_data"];
+const ORIGINAL_API_URL = "https://alfabank.ru/api/v1/azs-stations/public/stations";
+const ORIGINAL_CENTER_LAT = 55.86449228891424;
+const ORIGINAL_CENTER_LON = 37.61043463745005;
+const DEFAULT_FUEL = "AI95";
+
+let DATA = [];
+let API_URL = ORIGINAL_API_URL;
+let BRANDS = [];
+
+let state = {
+  centerLat: ORIGINAL_CENTER_LAT,
+  centerLon: ORIGINAL_CENTER_LON,
+  maxDist: 5.00,
+  limit: 0,
+  fuel: DEFAULT_FUEL,
+  activeStatuses: new Set(["available"]),
+  brand: "",
+  sorters: [],
+  selectedStationId: null,
+};
+
+let centerModeActive = false;
+
 function normalizeRaw(rawStations) {
+  console.log('🔄 normalizeRaw called, raw length:', rawStations.length);
   const out = [];
+  let validCount = 0;
+  let invalidCount = 0;
+  
   for (const st of rawStations) {
     const loc = (st.address && st.address.location) || {};
     const lat = loc.latitude, lon = loc.longitude;
-    if (lat == null || lon == null) continue;
+    if (lat == null || lon == null) {
+      invalidCount++;
+      continue;
+    }
     const fuels = {};
     FUEL_ORDER.forEach(cat => {
       const f = (st.fuels || []).find(x => x.category === cat);
@@ -1107,7 +1037,10 @@ function normalizeRaw(rawStations) {
       longitude: lon,
       fuels: fuels,
     });
+    validCount++;
   }
+  
+  console.log(`✅ normalizeRaw: ${validCount} valid, ${invalidCount} invalid stations`);
   return out;
 }
 
@@ -1210,26 +1143,126 @@ function updateFilterBadge() {
   }
 }
 
-function applyNewRawData(rawStations, sourceLabel) {
-  setStatus(t('loadStatusParsing', { count: rawStations.length }));
-  showProgress(null);
+// ============================================================
+// 4. ОБНОВЛЕНИЕ ЯЗЫКА
+// ============================================================
+function updateAllLabels() {
+  const elements = {
+    pageTitle: document.getElementById('pageTitle'),
+    headerEyebrow: document.getElementById('headerEyebrow'),
+    headerTitle: document.getElementById('headerTitle'),
+    urlLabel: document.getElementById('urlLabel'),
+    addressLabel: document.getElementById('addressLabel'),
+    fuelLabel: document.getElementById('fuelLabel'),
+    brandLabel: document.getElementById('brandLabel'),
+    allBrandsOption: document.getElementById('allBrandsOption'),
+    availabilityLabel: document.getElementById('availabilityLabel'),
+    thDistance: document.getElementById('thDistance'),
+    thAddress: document.getElementById('thAddress'),
+    thFuel: document.getElementById('thFuel'),
+    thPrice: document.getElementById('thPrice'),
+    thUpdated: document.getElementById('thUpdated'),
+    emptyState: document.getElementById('emptyState'),
+    saveHint: document.getElementById('saveHint'),
+    mapHint: document.getElementById('mapHint'),
+    centerBtnLabel: document.getElementById('centerBtnLabel'),
+  };
+
+  if (elements.pageTitle) document.title = t('pageTitle');
+  if (elements.pageTitle) elements.pageTitle.textContent = t('pageTitle');
+  if (elements.headerEyebrow) elements.headerEyebrow.textContent = t('headerEyebrow');
+  if (elements.headerTitle) elements.headerTitle.textContent = t('headerTitle');
   
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (key) {
+      el.textContent = t(key);
+    }
+  });
+  
+  if (elements.urlLabel) elements.urlLabel.textContent = t('urlLabel');
+  if (elements.addressLabel) elements.addressLabel.textContent = t('addressLabel');
+  if (elements.coordsLabel) {
+    elements.coordsLabel.innerHTML = t('coordsLabel') + ' <span id="coordHint" style="text-transform:none;letter-spacing:0;"></span>';
+  }
+  if (elements.fuelLabel) elements.fuelLabel.textContent = t('fuelLabel');
+  if (elements.brandLabel) elements.brandLabel.textContent = t('brandLabel');
+  if (elements.allBrandsOption) elements.allBrandsOption.textContent = t('allBrands');
+  if (elements.availabilityLabel) elements.availabilityLabel.textContent = t('availabilityLabel');
+  if (elements.showLabel) {
+    elements.showLabel.innerHTML = t('showLabel', { count: '' }) + ' <b id="limitCountLabel">все</b>';
+  }
+  if (elements.nearestLabel) elements.nearestLabel.textContent = t('nearestLabel');
+  
+  if (elements.thDistance) elements.thDistance.innerHTML = t('thDistance') + '<span class="arrow"></span>';
+  if (elements.thAddress) elements.thAddress.innerHTML = t('thAddress') + '<span class="arrow"></span>';
+  if (elements.thFuel) elements.thFuel.innerHTML = t('thFuel') + '<span class="arrow"></span>';
+  if (elements.thPrice) elements.thPrice.innerHTML = t('thPrice') + '<span class="arrow"></span>';
+  if (elements.thUpdated) elements.thUpdated.innerHTML = t('thUpdated') + '<span class="arrow"></span>';
+  
+  if (elements.emptyState) elements.emptyState.textContent = t('emptyState');
+  if (elements.saveHint) elements.saveHint.textContent = t('saveHint');
+  
+  const mapBtn = document.getElementById('toggleMapBtn');
+  if (mapBtn) {
+    const mapVisible = document.getElementById('mapBlock').style.display !== 'none';
+    mapBtn.textContent = mapVisible ? t('hideMapBtn') : t('showMapBtn');
+  }
+  
+  const centerModeHint = document.getElementById('centerModeHint');
+  if (centerModeHint) {
+    const isActive = centerModeHint.style.color === 'var(--accent)';
+    centerModeHint.textContent = isActive ? t('centerModeOn') : t('centerModeOff');
+  }
+  if (elements.mapHint) elements.mapHint.textContent = t('mapHint');
+  if (elements.centerBtnLabel) elements.centerBtnLabel.textContent = t('centerBtnLabel');
+  
+  rebuildFuelSelect();
+  rebuildStatusToggles();
+  updateFilterBadge();
+  updateStatusLine();
+}
+
+// ============================================================
+// 5. ПРИМЕНЕНИЕ ДАННЫХ
+// ============================================================
+function applyNewRawData(rawStations, sourceLabel) {
+  console.log(`📊 applyNewRawData called with ${rawStations.length} items from "${sourceLabel}"`);
+  
+  // Проверяем структуру данных
   let stationsData = rawStations;
   let updateTime = null;
   
   if (rawStations.data && Array.isArray(rawStations.data)) {
+    console.log('📊 Data has "data" field with', rawStations.data.length, 'items');
     stationsData = rawStations.data;
     if (rawStations.updated_at) {
       updateTime = new Date(rawStations.updated_at);
+      console.log('📊 Update time:', updateTime);
     }
+  } else if (Array.isArray(rawStations)) {
+    console.log('📊 Data is a direct array with', rawStations.length, 'items');
+  } else {
+    console.warn('⚠️ Unknown data structure:', Object.keys(rawStations));
+    setStatus('Неизвестная структура данных. Ожидается массив или {data: [...]}', 'err');
+    return;
   }
   
+  setStatus(t('loadStatusParsing', { count: stationsData.length }));
+  showProgress(null);
+  
   DATA = normalizeRaw(stationsData);
+  console.log('✅ DATA normalized, length:', DATA.length);
+  
+  if (DATA.length === 0) {
+    console.warn('⚠️ No valid stations after normalization');
+    setStatus('Не найдено валидных АЗС в данных', 'err');
+    return;
+  }
+  
   rebuildBrandOptions();
-  const totalCountEl = document.getElementById("totalCount");
-  const stationCountFooter = document.getElementById("stationCountFooter");
-  if (totalCountEl) totalCountEl.textContent = DATA.length;
-  if (stationCountFooter) stationCountFooter.textContent = DATA.length;
+  document.getElementById("totalCount").textContent = DATA.length;
+  document.getElementById("stationCountFooter").textContent = DATA.length;
   updateMaxDistBound(true);
   applyFilters();
   hideProgress();
@@ -1241,15 +1274,15 @@ function applyNewRawData(rawStations, sourceLabel) {
     statusMessage += `, ${currentLang === 'ru' ? 'файл обновлен' : 'file updated'} ${formattedTime}`;
   }
   setStatus(statusMessage, "ok");
+  console.log('✅ Status set:', statusMessage);
   
-  const dataLoadedLabel = document.getElementById("dataLoadedLabel");
-  if (dataLoadedLabel) dataLoadedLabel.textContent = now + ` (${sourceLabel})`;
+  document.getElementById("dataLoadedLabel").textContent = now + ` (${sourceLabel})`;
   updateStatusLine();
   updateFilterBadge();
 }
 
 // ============================================================
-// ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ИСПРАВЛЕННАЯ)
+// 6. ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ
 // ============================================================
 async function fetchFromUrl(url) {
   const btn = document.getElementById("refreshBtn");
@@ -1257,140 +1290,153 @@ async function fetchFromUrl(url) {
   showProgress(null);
   
   console.log('🔄 fetchFromUrl started, url:', url);
+  console.log('📍 Current language:', currentLang);
   
-  // ====== 1. ПРОВЕРЯЕМ ЛОКАЛЬНЫЙ ФАЙЛ ======
-  setStatus(t('loadStatusLocal'));
-  console.log('📁 Step 1: Checking local stations.json...');
   try {
-    const localResp = await fetch('stations.json', { cache: "no-store" });
-    console.log('📁 Local response status:', localResp.status);
-    if (localResp.ok) {
-      const text = await localResp.text();
-      console.log('📁 Local file size:', text.length, 'bytes');
-      try {
-        const raw = JSON.parse(text);
-        console.log('📁 Local file parsed, stations count:', raw.data?.length || raw.length);
-        if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
-          applyNewRawData(raw, t('loadStatusLocalOk'));
-          if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
-          hideProgress();
-          console.log('✅ Loaded from local file');
-          return;
-        } else {
-          console.warn('⚠️ Local file invalid format:', typeof raw, Object.keys(raw));
-          setStatus(t('loadStatusLocalInvalid'), "err");
-        }
-      } catch (e) {
-        console.error('❌ Local file parse error:', e.message);
-        setStatus(t('loadStatusLocalInvalid'), "err");
-      }
-    } else {
-      console.warn('⚠️ Local file not found:', localResp.status);
-      setStatus(t('loadStatusLocalNotFound', { status: localResp.status }), "err");
-    }
-  } catch (e) {
-    console.warn('⚠️ Local file read error:', e.message);
-    setStatus(t('loadStatusLocalReadError', { msg: e.message }), "err");
-  }
-
-  // ====== 2. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB ======
-  setStatus(t('checkingRepo'));
-  console.log('🌐 Step 2: Checking GitHub repository...');
-  try {
-    const repoUrl = 'https://raw.githubusercontent.com/piterkey/azs/main/stations.json';
-    console.log('🌐 Fetching from:', repoUrl);
-    const repoResp = await fetch(repoUrl, { cache: "no-store" });
-    console.log('🌐 Repository response status:', repoResp.status);
-    
-    if (repoResp.ok) {
-      const text = await repoResp.text();
-      console.log('🌐 Repository file size:', text.length, 'bytes');
-      try {
-        const raw = JSON.parse(text);
-        console.log('🌐 Repository file parsed, stations count:', raw.data?.length || raw.length);
-        if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
-          applyNewRawData(raw, t('fromRepo'));
-          if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
-          hideProgress();
-          console.log('✅ Loaded from repository');
-          return;
-        } else {
-          console.warn('⚠️ Repository file invalid format:', typeof raw, Object.keys(raw));
-          setStatus(t('loadStatusLocalInvalid'), "err");
-        }
-      } catch (e) {
-        console.error('❌ Repository file parse error:', e.message);
-        setStatus(t('loadStatusLocalInvalid'), "err");
-      }
-    } else {
-      console.warn('⚠️ Repository file not found:', repoResp.status);
-      setStatus(t('repoNotFound', { status: repoResp.status }), "err");
-    }
-  } catch (e) {
-    console.error('❌ Repository fetch error:', e.message);
-    setStatus(t('repoError', { msg: e.message }), "err");
-  }
-
-  // ====== 3. ПРОБУЕМ API ======
-  setStatus(t('loadStatusFromApi', { url: url }));
-  console.log('🌐 Step 3: Trying API...', url);
-  try {
-    const apiController = new AbortController();
-    const apiTimeout = setTimeout(() => apiController.abort(), 8000);
-    let directResp;
+    // ====== 1. ПРОВЕРЯЕМ ЛОКАЛЬНЫЙ ФАЙЛ ======
+    setStatus(t('loadStatusLocal'));
+    console.log('📁 Step 1: Checking local stations.json...');
     try {
-      directResp = await fetch(url, {
-        cache: "no-store",
-        headers: { 'Accept': 'application/json' },
-        signal: apiController.signal,
-      });
-    } finally {
-      clearTimeout(apiTimeout);
+      const localResp = await fetch('stations.json', { cache: "no-store" });
+      console.log('📁 Local response status:', localResp.status);
+      if (localResp.ok) {
+        const text = await localResp.text();
+        console.log('📁 Local file size:', text.length, 'bytes');
+        try {
+          const raw = JSON.parse(text);
+          console.log('📁 Local file parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
+          console.log('📁 Local file keys:', Array.isArray(raw) ? 'array' : Object.keys(raw));
+          if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
+            applyNewRawData(raw, t('loadStatusLocalOk'));
+            if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+            hideProgress();
+            console.log('✅ Loaded from local file');
+            return;
+          } else {
+            console.warn('⚠️ Local file invalid format');
+            setStatus(t('loadStatusLocalInvalid'), "err");
+          }
+        } catch (e) {
+          console.error('❌ Local file parse error:', e.message);
+          setStatus(t('loadStatusLocalInvalid'), "err");
+        }
+      } else {
+        console.warn('⚠️ Local file not found:', localResp.status);
+        setStatus(t('loadStatusLocalNotFound', { status: localResp.status }), "err");
+      }
+    } catch (e) {
+      console.warn('⚠️ Local file read error:', e.message);
+      setStatus(t('loadStatusLocalReadError', { msg: e.message }), "err");
     }
 
-    console.log('🌐 API response status:', directResp?.status);
-    
-    if (directResp && directResp.ok) {
-      const text = await directResp.text();
-      console.log('🌐 API file size:', text.length, 'bytes');
-      try {
-        const raw = JSON.parse(text);
-        console.log('🌐 API parsed, stations count:', raw.data?.length || raw.length);
-        applyNewRawData(raw, t('fromSite'));
-        if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
-        hideProgress();
-        console.log('✅ Loaded from API');
-        return;
-      } catch (e) {
-        console.error('❌ API parse error:', e.message);
-        setStatus(t('errJsonParse', { msg: e.message }), "err");
+    // ====== 2. ПРОВЕРЯЕМ РЕПОЗИТОРИЙ GITHUB ======
+    setStatus(t('checkingRepo'));
+    console.log('🌐 Step 2: Checking GitHub repository...');
+    try {
+      const repoUrl = 'https://raw.githubusercontent.com/piterkey/azs/main/stations.json';
+      console.log('🌐 Fetching from:', repoUrl);
+      const repoResp = await fetch(repoUrl, { cache: "no-store" });
+      console.log('🌐 Repository response status:', repoResp.status);
+      
+      if (repoResp.ok) {
+        const text = await repoResp.text();
+        console.log('🌐 Repository file size:', text.length, 'bytes');
+        try {
+          const raw = JSON.parse(text);
+          console.log('🌐 Repository file parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
+          console.log('🌐 Repository file keys:', Array.isArray(raw) ? 'array' : Object.keys(raw));
+          if (Array.isArray(raw) || (raw.data && Array.isArray(raw.data))) {
+            applyNewRawData(raw, t('fromRepo'));
+            if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+            hideProgress();
+            console.log('✅ Loaded from repository');
+            return;
+          } else {
+            console.warn('⚠️ Repository file invalid format');
+            setStatus(t('loadStatusLocalInvalid'), "err");
+          }
+        } catch (e) {
+          console.error('❌ Repository file parse error:', e.message);
+          setStatus(t('loadStatusLocalInvalid'), "err");
+        }
+      } else {
+        console.warn('⚠️ Repository file not found:', repoResp.status);
+        setStatus(t('repoNotFound', { status: repoResp.status }), "err");
       }
-    } else {
-      const statusText = directResp?.statusText || 'unknown error';
-      console.warn('⚠️ API error:', directResp?.status, statusText);
-      setStatus(t('loadStatusApiError', { status: directResp?.status || '?', text: statusText }), "err");
-      if (directResp?.status === 403) {
+    } catch (e) {
+      console.error('❌ Repository fetch error:', e.message);
+      setStatus(t('repoError', { msg: e.message }), "err");
+    }
+
+    // ====== 3. ПРОБУЕМ API ======
+    setStatus(t('loadStatusFromApi', { url: url }));
+    console.log('🌐 Step 3: Trying API...', url);
+    try {
+      const apiController = new AbortController();
+      const apiTimeout = setTimeout(() => apiController.abort(), 8000);
+      let directResp;
+      try {
+        directResp = await fetch(url, {
+          cache: "no-store",
+          headers: { 'Accept': 'application/json' },
+          signal: apiController.signal,
+        });
+      } finally {
+        clearTimeout(apiTimeout);
+      }
+
+      console.log('🌐 API response status:', directResp?.status);
+      
+      if (directResp && directResp.ok) {
+        const text = await directResp.text();
+        console.log('🌐 API file size:', text.length, 'bytes');
+        try {
+          const raw = JSON.parse(text);
+          console.log('🌐 API parsed, type:', Array.isArray(raw) ? 'array' : typeof raw);
+          applyNewRawData(raw, t('fromSite'));
+          if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+          hideProgress();
+          console.log('✅ Loaded from API');
+          return;
+        } catch (e) {
+          console.error('❌ API parse error:', e.message);
+          setStatus(t('errJsonParse', { msg: e.message }), "err");
+        }
+      } else {
+        const statusText = directResp?.statusText || 'unknown error';
+        console.warn('⚠️ API error:', directResp?.status, statusText);
+        setStatus(t('loadStatusApiError', { status: directResp?.status || '?', text: statusText }), "err");
+        if (directResp?.status === 403) {
+          setStatus(t('errApiFetch'), "err");
+        }
+      }
+    } catch (e) {
+      const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
+      console.error('❌ API fetch error:', e);
+      setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
+      if (e.message.includes('fetch') || e.message.includes('network')) {
         setStatus(t('errApiFetch'), "err");
       }
     }
-  } catch (e) {
-    const msg = e.name === "AbortError" ? t('loadStatusApiTimeout') : e.message;
-    console.error('❌ API fetch error:', e);
-    setStatus(t('loadStatusApiErrorMsg', { msg: msg }), "err");
-    if (e.message.includes('fetch') || e.message.includes('network')) {
-      setStatus(t('errApiFetch'), "err");
-    }
-  }
 
-  // ====== ВСЕ СПОСОБЫ НЕ УДАЛИСЬ ======
-  console.error('❌ All data loading methods failed');
-  hideProgress();
-  setStatus(t('loadStatusFailed', { url: url }), "err");
-  
-  if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+    // ====== ВСЕ СПОСОБЫ НЕ УДАЛИСЬ ======
+    console.error('❌ All data loading methods failed');
+    hideProgress();
+    setStatus(t('loadStatusFailed', { url: url }), "err");
+    
+  } catch (err) {
+    console.error('❌ Unexpected error:', err);
+    hideProgress();
+    setStatus(t('errGeneral', { msg: err.message }), "err");
+  } finally {
+    if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+    console.log('🔄 fetchFromUrl finished');
+  }
 }
 
-// ---------- Точка отсчёта и радиус ----------
+// ============================================================
+// 7. ТОЧКА ОТСЧЁТА И РАДИУС
+// ============================================================
 function farthestDistanceKm() {
   let max = 0;
   for (const s of DATA) {
@@ -1445,7 +1491,9 @@ function setCenter(lat, lon, opts) {
   reverseGeocode(lat, lon);
 }
 
-// ---------- Геокодирование ----------
+// ============================================================
+// 8. ГЕОКОДИРОВАНИЕ
+// ============================================================
 async function geocodeAddress(address) {
   if (!address.trim()) return null;
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
@@ -1475,7 +1523,9 @@ async function reverseGeocode(lat, lon) {
   } catch {}
 }
 
-// ---------- Обработчики ----------
+// ============================================================
+// 9. ОБРАБОТЧИКИ ИНТЕРФЕЙСА
+// ============================================================
 document.getElementById("applyAddressBtn").addEventListener("click", async () => {
   const input = document.getElementById("addressInput");
   const address = input.value;
@@ -1660,7 +1710,6 @@ function applyFilters() {
   }
 }
 
-// ---------- Сброс всех фильтров ----------
 function resetAllFilters() {
   setCenter(ORIGINAL_CENTER_LAT, ORIGINAL_CENTER_LON, { expandToFarthest: true, skipPan: true });
   
@@ -1704,7 +1753,6 @@ function resetAllFilters() {
   render(null);
 }
 
-// ---------- Автоматическое расширение радиуса ----------
 function expandRadiusToIncludeStation(stationId) {
   const station = DATA.find(s => s.station_id === stationId);
   if (!station) return false;
@@ -1728,7 +1776,9 @@ function expandRadiusToIncludeStation(stationId) {
   return true;
 }
 
-// ---------- Сборка строк ----------
+// ============================================================
+// 10. ТАБЛИЦА И КАРТА
+// ============================================================
 function currentRows() {
   const rows = [];
   for (const s of DATA) {
@@ -1790,7 +1840,6 @@ function sortRows(rows) {
   });
 }
 
-// ---------- Центральная точка ----------
 function updateCenterButtonState() {
   const btn = document.getElementById('toggleCenterBtn');
   const hint = document.getElementById('centerModeHint');
@@ -2181,9 +2230,12 @@ document.getElementById("apiUrlInput").addEventListener("keydown", (e) => {
 });
 
 document.getElementById("refreshBtn").addEventListener("click", async () => {
+  console.log('🔄 Refresh button clicked');
   try {
     await fetchFromUrl(API_URL);
-  } catch (e) {}
+  } catch (e) {
+    console.error('❌ Refresh error:', e);
+  }
 });
 
 document.getElementById("fileBtn").addEventListener("click", () => document.getElementById("fileInput").click());
@@ -2220,7 +2272,9 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
   reader.readAsText(file, "utf-8");
 });
 
-// ---------- Переключение языка ----------
+// ============================================================
+// 11. ПЕРЕКЛЮЧЕНИЕ ЯЗЫКА
+// ============================================================
 document.getElementById('langRu').addEventListener('click', function() {
   if (currentLang === 'ru') return;
   currentLang = 'ru';
@@ -2243,7 +2297,9 @@ document.getElementById('langEn').addEventListener('click', function() {
   centerMarker.setPopupContent("<b>❤️ " + (currentLang === 'ru' ? 'Точка отсчёта' : 'Reference point') + "</b>");
 });
 
-// ---------- Инициализация ----------
+// ============================================================
+// 12. ИНИЦИАЛИЗАЦИЯ
+// ============================================================
 document.getElementById('pageBuiltLabel').textContent = '16.08.2026 09:49 UTC';
 document.getElementById('dataLoadedLabel').textContent = t('dataLoaded');
 document.getElementById('limitHint').textContent = t('limitHint');
@@ -2271,6 +2327,7 @@ updateStatusLine();
 
 // Загружаем данные
 if (DATA.length === 0) {
+  console.log('🚀 Initial data load');
   fetchFromUrl(API_URL);
 }
 </script>
